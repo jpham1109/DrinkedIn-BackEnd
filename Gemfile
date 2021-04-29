@@ -28,8 +28,10 @@ gem 'rack-cors'
 gem 'activerecord-reset-pk-sequence'
 gem 'active_model_serializers'
 gem 'active_storage_validations'
-
 gem 'awesome_print'
+
+gem 'faraday'
+gem 'dotenv-rails', :groups => [:development, :test]
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console

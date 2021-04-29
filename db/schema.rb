@@ -53,6 +53,7 @@ ActiveRecord::Schema.define(version: 2021_04_28_175614) do
 
   create_table "cocktails", force: :cascade do |t|
     t.string "name"
+    t.string "image"
     t.string "description"
     t.string "execution"
     t.text "ingredients", default: [], array: true
@@ -88,6 +89,14 @@ ActiveRecord::Schema.define(version: 2021_04_28_175614) do
     t.boolean "bartender"
     t.string "work_at"
     t.string "instagram_account"
+    t.string "biography"
+    t.integer "insta_follower"
+    t.integer "insta_following"
+    t.string "profile_pic"
+    t.text "workplace_photos", array: true
+    t.float "workplace_rating"
+    t.text "workplace_reviews", array: true
+    t.integer "workplace_ratings_total"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
   end

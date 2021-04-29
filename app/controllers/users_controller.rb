@@ -35,6 +35,16 @@ class UsersController < ApplicationController
         else
             render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
         end
+
+        insta_api_url= "https://instagram28.p.rapidapi.com/user_info?user_name=#{user.instagram_account}"
+        response = Faraday.get(insta_api_url, {"x-rapidapi-host" => "instagram28.p.rapidapi.com"}, {"x-rapidapi-key" => ENV['INSTA_KEY']})
+        # res = JSON.parse(response.body)
+        # res["candidates"][0]["place_id"]
+
+        if user.work_at
+             
+        end
+        
     end
 
     def me
@@ -52,6 +62,6 @@ class UsersController < ApplicationController
     private 
 
     def user_params
-        params.permit(:full_name, :username, :password, :location, :bartender, :work_at, :instagram_account)
+        params.permit(:full_name, :username, :password, :location, :bartender, :work_at, :instagram_account, :image)
     end
 end
