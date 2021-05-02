@@ -7,6 +7,8 @@
 #   Character.create(name: 'Luke', movie: movies.first)
 Cocktail.all.destroy_all
 Cocktail.all.reset_pk_sequence
+User.all.destroy_all
+User.all.reset_pk_sequence
 Category.all.destroy_all
 Category.all.reset_pk_sequence 
 
@@ -35,7 +37,7 @@ highball = Category.create(name: "Highball", definition: "Made with a base spiri
 
 toddy = Category.create(name: "Toddy", definition: "Old-fashioned style of cocktail with distilled spirit, sweetener and hot water, and other spices", popular_drinks: [{name: "Hot Toddy", image: "https://static01.nyt.com/images/2019/12/04/dining/rp-hot-toddy/rp-hot-toddy-articleLarge.jpg"}, {name: "Hot Buttered Rum", image: "https://hips.hearstapps.com/hmg-prod/images/delish-190904-hot-buttered-rum-0462-landscape-pf-1568846593.jpg"}, {name: "Irish Coffee", image: "https://www.liquor.com/thmb/GZYit8B1jTZwM6bqyA80nRkkj1A=/450x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__liquor__2013__04__Dead-Rabbit-Irish-Coffee-0492c99a5f2444028069e22c745b7608.jpg"}])
 
-flips_and_nogs = Category.create(name: "Flips and Nogs", definition: "Made with whole eggs, base spirits, cream and/or milk, sweetening agents such as maple syrup or sugar", popular_drinks: [{name: "https://www.michiganradio.org/sites/michigan/files/styles/x_large/public/202011/DSC_0694.edtjpg.jpg"}, {name: "Eggnog", image: "https://www.seriouseats.com/2017/12/20171101-eggnog-vicky-wasik-1.jpg"}, {name: "Brandy Flip", image: "https://assets.punchdrink.com/wp-content/uploads/2016/03/Brandy-Flip-2-Cocktail-Ale-Sherry-Brandy-Drinks-History-Recipe-Elephant-Flip-Pouring-Ribbons-Franklin-Bar-Philadelphia-NYC.jpg"}])
+flips_and_nogs = Category.create(name: "Flips and Nogs", definition: "Made with whole eggs, base spirits, cream and/or milk, sweetening agents such as maple syrup or sugar", popular_drinks: [{name: "Boston Flip", image: "https://images.squarespace-cdn.com/content/v1/588d3b862e69cf76b75442ed/1485655195933-9VMVN22FZC0QWFZ1IR02/ke17ZwdGBToddI8pDm48kLkXF2pIyv_F2eUT9F60jBl7gQa3H78H3Y0txjaiv_0fDoOvxcdMmMKkDsyUqMSsMWxHk725yiiHCCLfrh8O1z4YTzHvnKhyp6Da-NYroOW3ZGjoBKy3azqku80C789l0iyqMbMesKd95J-X4EagrgU9L3Sa3U8cogeb0tjXbfawd0urKshkc5MgdBeJmALQKw/image-asset.jpeg?format=2500w"}, {name: "Eggnog", image: "https://www.seriouseats.com/2017/12/20171101-eggnog-vicky-wasik-1.jpg"}, {name: "Brandy Flip", image: "https://assets.punchdrink.com/wp-content/uploads/2016/03/Brandy-Flip-2-Cocktail-Ale-Sherry-Brandy-Drinks-History-Recipe-Elephant-Flip-Pouring-Ribbons-Franklin-Bar-Philadelphia-NYC.jpg"}])
 
 juleps_and_smashes = Category.create(name: "Juleps and Smashes", definition: "Made of a base spirit, fresh mint, sugar, sometimes with fruits in case of smashes, and a lot of ice", popular_drinks: [{name: "Mint Julep", image: "https://upload.wikimedia.org/wikipedia/commons/5/55/Mint_Julep_im_Silberbecher.jpg"}, {name: "Peach Whiskey Smash", image: "https://i2.wp.com/completelydelicious.com/wp-content/uploads/2018/07/grilled-peach-whiskey-smash-5.jpg"}])
 

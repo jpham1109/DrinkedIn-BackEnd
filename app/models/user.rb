@@ -15,9 +15,9 @@ class User < ApplicationRecord
     validates :username, uniqueness: { case_sensitive: false }
 
     def instagram_info
-        insta_api_url= "https://instagram28.p.rapidapi.com/user_info?user_name=#{user.instagram_account}"
+        insta_api_url= "https://instagram28.p.rapidapi.com/user_info?user_name=#{self.instagram_account}"
         response = Faraday.get(insta_api_url, {"x-rapidapi-host" => "instagram28.p.rapidapi.com"}, {"x-rapidapi-key" => ENV['INSTA_KEY']})
-        # res = JSON.parse(response.body)
+        res = JSON.parse(response.body)
         # res["candidates"][0]["place_id"]
     end
 

@@ -11,7 +11,6 @@ class UsersController < ApplicationController
         render json: @user
     end 
 
-    #POST /login
     def login
         # Look up a user with username and password
         # user = User.first
@@ -36,13 +35,11 @@ class UsersController < ApplicationController
             render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
         end
 
-        insta_api_url= "https://instagram28.p.rapidapi.com/user_info?user_name=#{user.instagram_account}"
-        response = Faraday.get(insta_api_url, {"x-rapidapi-host" => "instagram28.p.rapidapi.com"}, {"x-rapidapi-key" => ENV['INSTA_KEY']})
-        # res = JSON.parse(response.body)
-        # res["candidates"][0]["place_id"]
+        insta_info = user.instagram_info
+        user.update(biography: insta_info["data"]["user"]["biography"], insta_follower: insta_info["data"]["user"]["edge_followed_by"]["count"], insta_following: insta_info["data"]["user"]["edge_follow"]["count"], profile_pic: insta_info["data"]["user"]["profile_pic_url"] )
 
         if user.work_at
-             
+            user.update(workplace_photos: user.workplace_photo_array, workplace_rating: user.workplace_rating, workplace_reviews: user.workplace_reviews, workplace_ratings_total: user.workplace_ratings_total)
         end
         
     end
@@ -54,7 +51,6 @@ class UsersController < ApplicationController
     end
 
     def update
-       
         @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], work_at: params[:work_at], instagram_account: params[:instagram_account])
         render json: @current_user
     end
@@ -62,6 +58,6 @@ class UsersController < ApplicationController
     private 
 
     def user_params
-        params.permit(:full_name, :username, :password, :location, :bartender, :work_at, :instagram_account, :image)
+        params.permit(:full_name, :username, :password, :location, :bartender, :work_at, :instagram_account)
     end
 end

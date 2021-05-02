@@ -29,7 +29,7 @@ gem 'activerecord-reset-pk-sequence'
 gem 'active_model_serializers'
 gem 'active_storage_validations'
 gem 'awesome_print'
-
+gem "jwt", "~> 2.2"
 gem 'faraday'
 gem 'dotenv-rails', :groups => [:development, :test]
 
