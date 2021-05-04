@@ -5,6 +5,6 @@ class Cocktail < ApplicationRecord
   has_many :likes
   has_many :likers, through: :likes, class_name: 'User'
 
-  has_one_attached :image
-  validates :image, attached: true
+  has_one_attached :photo
+  # validates :image, attached: true
 end

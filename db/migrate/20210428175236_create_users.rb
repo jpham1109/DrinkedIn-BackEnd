@@ -11,7 +11,7 @@ class CreateUsers < ActiveRecord::Migration[6.1]
       t.string :biography
       t.integer :insta_follower
       t.integer :insta_following
-      t.string :profile_pic
+      t.text :profile_pic
       t.text :workplace_photos, array: true
       t.float :workplace_rating
       t.text :workplace_reviews, array: true 
