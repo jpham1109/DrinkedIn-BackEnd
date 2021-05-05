@@ -13,16 +13,17 @@ class CocktailsController < ApplicationController
 
     def create 
         cocktail = Cocktail.create(user_id: params[:user_id], category_id: @category.id, name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients]) 
-
+        
         if cocktail.valid?
-            render json: { cocktail: CocktailSerializer.new(cocktail) }, status: :created
+            render json: cocktail, status: :created
+            puts cocktail
         else
             render json: { error: 'failed to create cocktail' }, status: :not_acceptable
         end 
     end
 
     def update
-        byebug
+        # byebug
         cocktail = Cocktail.find(params[:id])
         cocktail.update(photo: params[:photo])
         photo_url = rails_blob_path(cocktail.photo)

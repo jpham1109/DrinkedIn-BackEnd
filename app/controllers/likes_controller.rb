@@ -7,6 +7,7 @@ class LikesController < ApplicationController
     end
 
     def create 
+        # byebug
         @like = Like.create(user_id: params["user_id"], cocktail_id: params["cocktail_id"])
         render json: @cocktail
     end 
