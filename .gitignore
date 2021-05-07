@@ -28,3 +28,4 @@
 
 #API keys
 .env
+./config/initializers/spotify_setup.rb

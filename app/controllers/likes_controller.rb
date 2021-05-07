@@ -6,6 +6,11 @@ class LikesController < ApplicationController
         render json: @likes
     end
 
+    def show
+        @like = Like.find(params[:id])
+        render json: @like
+    end
+
     def create 
         # byebug
         @like = Like.create(user_id: params["user_id"], cocktail_id: params["cocktail_id"])

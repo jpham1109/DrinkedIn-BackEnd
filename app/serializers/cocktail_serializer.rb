@@ -1,7 +1,7 @@
 class CocktailSerializer < ActiveModel::Serializer
   include Rails.application.routes.url_helpers
-  attributes :id, :name, :description, :ingredients, :execution, :image, :likes
-  has_one :user
+  attributes :id, :name, :description, :ingredients, :execution, :image, :likes_count, :creator, :user
+  # has_one :user
   has_one :category
 
   # def photo
