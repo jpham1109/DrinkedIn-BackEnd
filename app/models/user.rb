@@ -33,6 +33,15 @@ class User < ApplicationRecord
             res["candidates"][0]["place_id"]
         end
     end 
+
+    def workplace_address
+        if self.work_at
+            gm_address_search_url = "https://maps.googleapis.com/maps/api/place/details/json?place_id=#{self.workplace_id}&fields=formatted_address&key=#{ENV['GM_KEY']}"
+            response = Faraday.get gm_address_search_url
+            res = JSON.parse(response.body)
+            res["result"]["formatted_address"]
+        end
+    end
     
     def workplace_photoref_array
         if self.work_at
