@@ -40,7 +40,7 @@ class UsersController < ApplicationController
         end
 
         if user.work_at
-            user.update(workplace_photos: user.workplace_photo_array, workplace_rating: user.workplace_rating, workplace_reviews: user.workplace_reviews, workplace_ratings_total: user.workplace_ratings_total)
+            user.update(workplace_photos: user.workplace_photo_array, workplace_rating: user.workplace_rating, workplace_reviews: user.workplace_reviews, workplace_ratings_total: user.workplace_ratings_total, workplace_id: user.workplace_id, workplace_address: user.workplace_address)
         end
         
     end
@@ -64,7 +64,7 @@ class UsersController < ApplicationController
         if @current_user.work_at
             # byebug
             user = User.find(@current_user.id)
-            user.update!(workplace_photos: user.workplace_photo_array, workplace_rating: user.workplace_rating, workplace_reviews: user.workplace_reviews, workplace_ratings_total: user.workplace_ratings_total)
+            user.update!(workplace_photos: user.workplace_photo_array, workplace_rating: user.workplace_rating, workplace_reviews: user.workplace_reviews, workplace_ratings_total: user.workplace_ratings_total, workplace_id: user.workplace_id, workplace_address: user.workplace_address)
         end
         render json: @current_user
     end
