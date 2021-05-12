@@ -3,7 +3,7 @@ class Cocktail < ApplicationRecord
   belongs_to :category
 
   has_many :likes
-  has_many :likers, through: :likes, class_name: 'User'
+  # has_many :likers, through: :likes, class_name: 'User'
 
   has_one_attached :photo
 

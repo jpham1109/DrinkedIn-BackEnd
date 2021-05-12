@@ -2,7 +2,7 @@ class CocktailsController < ApplicationController
     before_action :find_category, only: [:create]
     before_action :cocktail_params, only: [:update]
     def index
-        @cocktails = Cocktail.order(:id)
+        @cocktails = Cocktail.all
         render json: @cocktails
     end 
 
