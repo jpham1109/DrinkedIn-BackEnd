@@ -1,8 +1,8 @@
 class CocktailSerializer < ActiveModel::Serializer
   include Rails.application.routes.url_helpers
-  attributes :id, :name, :description, :ingredients, :execution, :image, :likes_count, :creator, :user
+  attributes :id, :name, :description, :ingredients, :execution, :image, :likes_count, :likes, :user, :category
   # has_one :user
-  has_one :category
+  # has_one :category
 
   # def photo
   #   rails_blob_path(object.photo, only_path: true) if object.photo.attached?

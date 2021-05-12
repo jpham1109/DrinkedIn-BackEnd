@@ -52,14 +52,14 @@ class UsersController < ApplicationController
     end
 
     def update
-        @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], work_at: params[:work_at], instagram_account: params[:instagram_account])
+        @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], work_at: params[:work_at])
         
-        if @current_user.instagram_account
-            user = User.find(@current_user.id)
-            insta_info = user.instagram_info
-            # byebug
-            user.update(biography: insta_info["data"]["user"]["biography"], insta_follower: insta_info["data"]["user"]["edge_followed_by"]["count"], insta_following: insta_info["data"]["user"]["edge_follow"]["count"], profile_pic: insta_info["data"]["user"]["profile_pic_url_hd"] )
-        end
+        # if @current_user.instagram_account
+        #     user = User.find(@current_user.id)
+        #     insta_info = user.instagram_info
+        #     # byebug
+        #     user.update(biography: insta_info["data"]["user"]["biography"], insta_follower: insta_info["data"]["user"]["edge_followed_by"]["count"], insta_following: insta_info["data"]["user"]["edge_follow"]["count"], profile_pic: insta_info["data"]["user"]["profile_pic_url_hd"] )
+        # end
 
         if @current_user.work_at
             # byebug

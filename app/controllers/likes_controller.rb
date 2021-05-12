@@ -17,6 +17,13 @@ class LikesController < ApplicationController
         render json: @cocktail
     end 
 
+    def destroy
+        # byebug
+        @like = Like.find(params[:id])
+        @like.destroy!
+        render json: @like
+    end
+
     private 
 
     def find_cocktail
