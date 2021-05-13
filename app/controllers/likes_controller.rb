@@ -2,7 +2,7 @@ class LikesController < ApplicationController
     before_action :find_cocktail, only: [:create]
 
     def index 
-        @likes = Like.order(:id)
+        @likes = Like.order(:id).includes([:cocktail])
         render json: @likes
     end
 

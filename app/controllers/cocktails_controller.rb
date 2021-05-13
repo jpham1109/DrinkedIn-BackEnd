@@ -2,12 +2,12 @@ class CocktailsController < ApplicationController
     before_action :find_category, only: [:create]
     before_action :cocktail_params, only: [:update]
     def index
-        @cocktails = Cocktail.all
+        @cocktails = Cocktail.order(:id).includes(:category, :user, :likes).where(user: {bartender: true})
         render json: @cocktails
     end 
 
     def show 
-        cocktail = Cocktail.find(params[:id])
+        cocktail = Cocktail.includes(:category, :user, :likes).find(params[:id])
         render json: cocktail
     end
 

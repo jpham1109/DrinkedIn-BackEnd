@@ -1,7 +1,7 @@
 class FollowsController < ApplicationController
 
     def index
-        @follows = Follow.order(:id)
+        @follows = Follow.order(:id).includes([:follower, :followee])
         render json: @follows
     end
 

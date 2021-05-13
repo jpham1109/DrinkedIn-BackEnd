@@ -2,7 +2,7 @@ class UsersController < ApplicationController
     before_action :authenticate, only: [:me, :update]
 
     def index
-        @users = User.order(:id)
+        @users = User.order(:id).preload([:followed_users, :following_users, :cocktails, :cocktail, :category, :likes])
         render json: @users
     end
 
@@ -13,7 +13,11 @@ class UsersController < ApplicationController
 
     def login
         
-        user = User.find_by(username: params[:username])
+        @users = User.order(:id).includes(:followed_users, :following_users, likes: [:cocktail], cocktails: [:category, :likes])
+        user = @users.find_by(username: params[:username])
+        @cocktails = user.cocktails.includes([:category, :likes])
+        @likes = user.likes.includes([:cocktail])
+        # @follows = user.follows.includes([:follower, :followee])
         
         if user && user.authenticate(params[:password])
             token = JWT.encode({ user_id: user.id }, 'my_secret', 'HS256')
@@ -52,14 +56,14 @@ class UsersController < ApplicationController
     end
 
     def update
-        @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], work_at: params[:work_at])
-        
-        # if @current_user.instagram_account
-        #     user = User.find(@current_user.id)
-        #     insta_info = user.instagram_info
-        #     # byebug
-        #     user.update(biography: insta_info["data"]["user"]["biography"], insta_follower: insta_info["data"]["user"]["edge_followed_by"]["count"], insta_following: insta_info["data"]["user"]["edge_follow"]["count"], profile_pic: insta_info["data"]["user"]["profile_pic_url_hd"] )
-        # end
+        @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], work_at: params[:work_at], instagram_account: params[:instagram_account])
+        @likes = @current_user.likes.includes([:cocktail])
+        if @current_user.instagram_account
+            user = User.find(@current_user.id)
+            insta_info = user.instagram_info
+            # byebug
+            user.update(biography: insta_info["data"]["user"]["biography"], insta_follower: insta_info["data"]["user"]["edge_followed_by"]["count"], insta_following: insta_info["data"]["user"]["edge_follow"]["count"], profile_pic: insta_info["data"]["user"]["profile_pic_url_hd"] )
+        end
 
         if @current_user.work_at
             # byebug
