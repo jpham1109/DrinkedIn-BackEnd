@@ -1,6 +1,6 @@
 class CocktailsController < ApplicationController
-    before_action :find_category, only: [:create]
-    before_action :cocktail_params, only: [:update]
+    before_action :find_category, only: [:create, :update]
+    # before_action :find_category, only: [:update]
     def index
         @cocktails = Cocktail.order(:id).includes(:category, :user, :likes).where(user: {bartender: true})
         render json: @cocktails
@@ -25,7 +25,8 @@ class CocktailsController < ApplicationController
     def update
         # byebug
         cocktail = Cocktail.find(params[:id])
-        cocktail.update(cocktail_params)
+        # @category = Category.find_by(name: params[:category])
+        cocktail.update(category_id: @category.id, name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients])
         # cocktail.update(photo: params[:photo])
         # photo_url = rails_blob_path(cocktail.photo)
         # render json: {cocktail: cocktail, photo_url: photo_url}
@@ -41,7 +42,7 @@ class CocktailsController < ApplicationController
     private 
 
     def cocktail_params
-        params.permit(:id, :name, :description, :execution, :ingredients, :photo, :category)
+        params.permit(:id, :name, :description, :execution, :ingredients, :photo)
     end 
 
     def find_category

@@ -5,8 +5,8 @@ class CreateCocktails < ActiveRecord::Migration[6.1]
       t.string :image
       t.string :description
       t.string :execution
-      t.text :ingredients, array: true, default: []
-      t.belongs_to :user, null: false, foreign_key: true
+      t.json :ingredients, array: true, default: []
+      t.references :bartender, references: :user, foreign_key: { to_table: :users }
       t.belongs_to :category, null: false, foreign_key: true
 
       t.timestamps

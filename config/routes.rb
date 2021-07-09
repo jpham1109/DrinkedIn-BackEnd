@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  resources :favorites
+  resources :workplaces
+  resources :bars
   get 'direct_uploads/create'
   resources :likes
   resources :follows
