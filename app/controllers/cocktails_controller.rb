@@ -1,18 +1,19 @@
 class CocktailsController < ApplicationController
-    before_action :find_category, only: [:create, :update]
+    before_action :find_category, only: [:create]
     # before_action :find_category, only: [:update]
     def index
-        @cocktails = Cocktail.order(:id).includes(:category, :user, :likes).where(user: {bartender: true})
+        @cocktails = Cocktail.order(:id)
+        # .includes(:category, :bartender, :likes).where(user: {bartender: true})
         render json: @cocktails
     end 
 
     def show 
-        cocktail = Cocktail.includes(:category, :user, :likes).find(params[:id])
-        render json: cocktail
+        cocktail = Cocktail.includes(:category, :likes).find(params[:id])
+        render json: cocktail, except: [:created_at, :updated_at]
     end
 
     def create 
-        cocktail = Cocktail.create(user_id: params[:user_id], category_id: @category.id, name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients]) 
+        cocktail = Cocktail.create(bartender_id: params[:user_id], category_id: @category.id, name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients]) 
         
         if cocktail.valid?
             render json: cocktail, status: :created
@@ -23,13 +24,14 @@ class CocktailsController < ApplicationController
     end
 
     def update
-        # byebug
+        
         cocktail = Cocktail.find(params[:id])
-        # @category = Category.find_by(name: params[:category])
+        if params["category"]["id"]
+            cocktail.update(name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients])
+        else
+        @category = Category.find_by(name: params[:category])
         cocktail.update(category_id: @category.id, name: params[:name], description: params[:description], execution: params[:execution], ingredients: params[:ingredients])
-        # cocktail.update(photo: params[:photo])
-        # photo_url = rails_blob_path(cocktail.photo)
-        # render json: {cocktail: cocktail, photo_url: photo_url}
+        end
         render json: cocktail
     end
 

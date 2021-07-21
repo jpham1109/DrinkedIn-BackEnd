@@ -3,6 +3,7 @@ class CreateBars < ActiveRecord::Migration[6.1]
     create_table :bars do |t|
       t.string :name
       t.string :address
+      t.string :website
       t.float :rating
       t.integer :total_ratings
       t.text :photos, array:true 

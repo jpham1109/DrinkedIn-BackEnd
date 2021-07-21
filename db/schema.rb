@@ -46,6 +46,7 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
   create_table "bars", force: :cascade do |t|
     t.string "name"
     t.string "address"
+    t.string "website"
     t.float "rating"
     t.integer "total_ratings"
     t.text "photos", array: true
@@ -67,7 +68,7 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
     t.string "image"
     t.string "description"
     t.string "execution"
-    t.json "ingredients", default: [], array: true
+    t.text "ingredients", array: true
     t.bigint "bartender_id"
     t.bigint "category_id", null: false
     t.datetime "created_at", precision: 6, null: false
@@ -116,6 +117,7 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
   create_table "workplaces", force: :cascade do |t|
     t.bigint "bar_id", null: false
     t.bigint "bartender_id"
+    t.string "schedule"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.index ["bar_id"], name: "index_workplaces_on_bar_id"
