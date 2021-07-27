@@ -60,13 +60,13 @@ class UsersController < ApplicationController
     end
 
     def me
-        byebug
+        
         render json: @current_user
          UserSerializer.new(@current_user)
     end
 
     def update
-        
+        # byebug
         @current_user.update(full_name: params[:full_name], username: params[:username], password: params[:password], location: params[:location], bartender: params[:bartender], instagram_account: params[:instagram_account])
         # @likes = @current_user.likes.includes([:cocktail])
         # if @current_user.instagram_account

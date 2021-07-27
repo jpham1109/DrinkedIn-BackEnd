@@ -35,7 +35,7 @@ gem "jwt", "~> 2.2"
 gem 'faraday'
 gem 'dotenv-rails', :groups => [:development, :test]
 
-gem 'rspotify'
+# gem 'rspotify'
 
 
 

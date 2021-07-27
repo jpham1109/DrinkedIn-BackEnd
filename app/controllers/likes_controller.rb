@@ -14,11 +14,12 @@ class LikesController < ApplicationController
     def create 
         # byebug
         @like = Like.create(liker_id: params["liker_id"], liked_cocktail_id: params["liked_cocktail_id"])
-        render json: @cocktail
+        render json: @like
     end 
 
     def destroy
-        @like = Like.find_by(liked_cocktail_id: params[:id])
+        
+        @like = Like.find(params[:id])
         @like.destroy!
         render json: @like
     end
