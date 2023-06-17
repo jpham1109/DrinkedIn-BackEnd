@@ -2,7 +2,7 @@ class CocktailsController < ApplicationController
     before_action :find_category, only: [:create]
     # before_action :find_category, only: [:update]
     def index
-        @cocktails = Cocktail.order(:id)
+        @cocktails = Cocktail.order(:id).includes(:category)
         # .includes(:category, :bartender, :likes).where(user: {bartender: true})
         render json: @cocktails
     end 

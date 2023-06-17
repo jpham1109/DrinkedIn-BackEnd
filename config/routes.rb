@@ -1,14 +1,5 @@
 Rails.application.routes.draw do
-  # resources :users, shallow: true do 
-  #   resources :follows
-  #   resources :favorites
-  #   resources :workplaces
-  #   resources :likes
-  # end
 
-  # resources :cocktails, shallow: true do 
-  #   resources :likes
-  # end
   resources :follows
   resources :favorites
   resources :workplaces
@@ -18,13 +9,11 @@ Rails.application.routes.draw do
   
   get 'direct_uploads/create'
   
-  
-  
   get "/users/:id", to: "users#show"
   get "/users", to: "users#index"
-  post "/login", to: "users#login"
+  post "/login", to: "sessions#create"
   post "/signup", to: "users#signup"
-  get "/me", to: "users#me"
+  get "/me", to: "sessions#show"
   patch "/me", to: "users#update"
 
   get "/cocktails", to: "cocktails#index"

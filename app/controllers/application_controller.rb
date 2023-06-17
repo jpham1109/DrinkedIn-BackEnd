@@ -1,17 +1,37 @@
 class ApplicationController < ActionController::API
-    def authenticate
-        # TODO: check some identifying info about request (token header)
-        # if user is logged in
-        # the can access this route
-        # otherwise
-        # don't give them access
-        # @current_user = User.first
-        auth_header = request.headers["Authorization"]
-        token = auth_header.split.last
-        payload = JWT.decode(token, 'my_secret', true, { algorithm: 'HS256' })[0]
-        @current_user = User.find_by(id: payload["user_id"])
-        #Error handling
-    rescue
-        render json: { errors: ["Not Authorized"] }, status: :unauthorized
+
+    #secret key saved away in a credentials file
+    def jwt_key
+        Rails.application.credentials.jwt_key
+    end
+
+    #method to encode a token for a user when they login or signup
+    def issue_token(user)
+        JWT.encode({user_id: user.id}, jwt_key, 'HS256')
+    end
+
+    #method to decode a token given to us by the client
+    def decoded_token
+        begin
+            JWT.decode(token, jwt_key, true, { :algorithm => 'HS256' })
+        rescue JWT::DecodeError
+            [{error: "Invalid Token"}]
+        end
+    end
+
+    #method to get the token from the client
+    def token
+        request.headers['Authorization']
+    end
+
+    #method to get the current user based on the token
+    def current_user
+        user_id = decoded_token.first['user_id']
+        User.find_by(id: user_id)
+    end
+
+    #method to check if the user is logged in
+    def logged_in?
+        !!current_user
     end
 end
