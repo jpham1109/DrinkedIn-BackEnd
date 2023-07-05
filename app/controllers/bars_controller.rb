@@ -1,6 +1,6 @@
 class BarsController < ApplicationController
     def index
-        @bars = Bar.order(:id)
+        @bars = Bar.all
         render json: @bars, except: [:created_at, :updated_at]
     end
 

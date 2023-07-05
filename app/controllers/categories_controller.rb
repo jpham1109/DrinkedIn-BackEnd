@@ -1,7 +1,7 @@
 class CategoriesController < ApplicationController
 
     def index
-        @categories = Category.order(:id).includes([:cocktails])
+        @categories = Category.order(:id).includes(:cocktails)
         render json: @categories
     end
 
