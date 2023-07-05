@@ -29,3 +29,6 @@
 #API keys
 .env
 ./config/initializers/spotify_setup.rb
+
+#Ignore Finder files
+.DS_Store

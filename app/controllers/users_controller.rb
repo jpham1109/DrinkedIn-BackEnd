@@ -94,6 +94,7 @@ class UsersController < ApplicationController
     private 
 
     def user_params
+        # investigate why `require(:user)` prevents user from being created: Password comes out blank
         params.permit(:full_name, :username, :password, :location, :bartender, :instagram_account)
     end
 
