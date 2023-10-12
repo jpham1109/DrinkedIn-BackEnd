@@ -1,20 +1,26 @@
+version: '3'
 services:
   db:
-    image: postgres:9.6
+    image: postgres:14.2-alpine
+    container_name: drinkedin_db
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
+    command: 
+      "postgres -c 'max_connections=500'"
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
   web:
-    platform: linux/x86_64
     env_file: .env
     build: .
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b '0.0.0.0'"
+    command: "./bin/rails server -b 0.0.0.0"
+    #these next two lines are to start an interactive shell in a container using docker compose so we are able to enter debugging commands such as continue , step and frame 
+    stdin_open: true
+    tty: true
     volumes:
       - .:/app
     ports: 

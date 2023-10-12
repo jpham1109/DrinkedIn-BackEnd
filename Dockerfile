@@ -1,13 +1,42 @@
-FROM ruby:2.7.2 
-RUN apt-get update -yqq && apt-get install -y nodejs postgresql-client
-WORKDIR /usr/src/app
-COPY Gemfile* ./
+# Make sure it matches the Ruby version in .ruby-version and Gemfile
+ARG RUBY_VERSION=3.2.0
+FROM ruby:$RUBY_VERSION
+
+# Install libvips for Active Storage preview support
+RUN apt-get update -qq && \
+    apt-get install -y build-essential libvips bash bash-completion libffi-dev tzdata postgresql nodejs npm yarn && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
+
+# Rails app lives here
+WORKDIR /rails
+
+# Set production environment
+# ENV RAILS_LOG_TO_STDOUT="1" \
+#     RAILS_SERVE_STATIC_FILES="true" \
+#     RAILS_ENV="production" \
+#     BUNDLE_WITHOUT="development"
+
+
+# Install application gems
+COPY Gemfile* .
 RUN bundle install
+
+#Copy application code
 COPY . .
+
+# Precompile bootsnap code for faster boot times
+RUN bundle exec bootsnap precompile --gemfile app/ lib/
+
+#Change permissions for entrypoint
+RUN chmod +x /rails/bin/docker-entrypoint
+
 # Add a script to be executed every time the container starts.
-COPY entrypoint.sh /usr/bin/
-RUN chmod +x /usr/bin/entrypoint.sh
-ENTRYPOINT ["entrypoint.sh"]
+# Entrypoint prepares the database.
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+
+# Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
+
 # Configure the main process to run when running the image
-CMD ["rails", "server", "-b", "0.0.0.0"]
+CMD ["./bin/rails", "server", "-b", "0.0.0.0"]

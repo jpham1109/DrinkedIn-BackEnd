@@ -38,7 +38,7 @@ class CocktailsController < ApplicationController
     def destroy
         cocktail = Cocktail.find(params[:id])
         cocktail.destroy
-        render json: cocktail
+        render json: Cocktail.all, status: ok
     end 
     
     private 
