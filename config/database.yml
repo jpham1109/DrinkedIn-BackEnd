@@ -87,5 +87,5 @@ test:
 production:
   <<: *default
   database: DrinkedIn_BackEnd_production
-  username: DrinkedIn_BackEnd
-  password: <%= ENV['DRINKEDIN_BACKEND_DATABASE_PASSWORD'] %>
+  # username: DrinkedIn_BackEnd
+  # password: <%= ENV['DRINKEDIN_BACKEND_DATABASE_PASSWORD'] %>

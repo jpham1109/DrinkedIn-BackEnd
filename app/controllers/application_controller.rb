@@ -27,7 +27,7 @@ class ApplicationController < ActionController::API
     #method to get the current user based on the token
     def current_user
         user_id = decoded_token.first['user_id']
-        User.find_by(id: user_id)
+        user ||= User.find_by(id: user_id)
     end
 
     #method to check if the user is logged in
