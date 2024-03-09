@@ -1,4 +1,3 @@
 class FollowSerializer < ActiveModel::Serializer
-  attributes :id, :follower, :follower_id, :followee, :followee_id
-
+  attributes :id, :follower_id, :followee_id
 end

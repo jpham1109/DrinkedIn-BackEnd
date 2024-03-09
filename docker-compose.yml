@@ -17,12 +17,12 @@ services:
   web:
     env_file: .env
     build: .
-    command: "./bin/rails server -b 0.0.0.0"
     #these next two lines are to start an interactive shell in a container using docker compose so we are able to enter debugging commands such as continue , step and frame 
     stdin_open: true
     tty: true
+    # Mapping the current directory to the container so we can edit the code and see the changes in the container
     volumes:
-      - .:/app
+      - .:/rails
     ports: 
       - "3000:3000"
     depends_on:

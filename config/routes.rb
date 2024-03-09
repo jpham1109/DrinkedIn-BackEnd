@@ -15,6 +15,7 @@ Rails.application.routes.draw do
   post "/signup", to: "users#signup"
   get "/me", to: "sessions#show"
   patch "/me", to: "users#update"
+  delete "/me", to: "users#destroy"
 
   get "/cocktails", to: "cocktails#index"
   get "/cocktails/:id", to: "cocktails#show"

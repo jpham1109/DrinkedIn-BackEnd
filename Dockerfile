@@ -1,10 +1,10 @@
 # Make sure it matches the Ruby version in .ruby-version and Gemfile
-ARG RUBY_VERSION=3.2.0
-FROM ruby:$RUBY_VERSION
+ARG RUBY_VERSION=3.2.2
+FROM ruby:3-slim
 
-# Install libvips for Active Storage preview support
+# Install libvips for Active Storage preview support and PostgreSQL development headers
 RUN apt-get update -qq && \
-    apt-get install -y build-essential libvips bash bash-completion libffi-dev tzdata postgresql nodejs npm yarn && \
+    apt-get install -y build-essential libvips bash bash-completion libffi-dev tzdata postgresql libpq-dev nodejs npm yarn && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
 
@@ -16,7 +16,6 @@ WORKDIR /rails
 #     RAILS_SERVE_STATIC_FILES="true" \
 #     RAILS_ENV="production" \
 #     BUNDLE_WITHOUT="development"
-
 
 # Install application gems
 COPY Gemfile* .
