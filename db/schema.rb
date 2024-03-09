@@ -10,8 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_06_07_182147) do
-
+ActiveRecord::Schema[7.0].define(version: 2021_06_07_182147) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -51,16 +50,16 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
     t.integer "total_ratings"
     t.text "photos", array: true
     t.text "reviews", array: true
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "categories", force: :cascade do |t|
     t.string "name"
     t.string "definition"
     t.jsonb "popular_drinks", default: [], array: true
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "cocktails", force: :cascade do |t|
@@ -71,8 +70,8 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
     t.text "ingredients", array: true
     t.bigint "bartender_id"
     t.bigint "category_id", null: false
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bartender_id"], name: "index_cocktails_on_bartender_id"
     t.index ["category_id"], name: "index_cocktails_on_category_id"
   end
@@ -80,23 +79,23 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
   create_table "favorites", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.integer "favorited_bar_id"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_favorites_on_user_id"
   end
 
   create_table "follows", force: :cascade do |t|
     t.integer "follower_id"
     t.integer "followee_id"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "likes", force: :cascade do |t|
     t.integer "liker_id"
     t.integer "liked_cocktail_id"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "users", force: :cascade do |t|
@@ -110,16 +109,16 @@ ActiveRecord::Schema.define(version: 2021_06_07_182147) do
     t.integer "insta_follower"
     t.integer "insta_following"
     t.text "profile_pic"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "workplaces", force: :cascade do |t|
     t.bigint "bar_id", null: false
     t.bigint "bartender_id"
     t.string "schedule"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bar_id"], name: "index_workplaces_on_bar_id"
     t.index ["bartender_id"], name: "index_workplaces_on_bartender_id"
   end
