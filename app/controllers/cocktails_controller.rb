@@ -4,7 +4,8 @@ class CocktailsController < ApplicationController
   wrap_parameters :cocktail, include: [:name, :description, :execution, :ingredients, :category, :user_id, :image]
 
   def index
-    cocktails = Cocktail.order(created_at: :desc)
+    # Eager load the :category, :bartender, and :photo_attachment associations
+    cocktails = Cocktail.includes(:category, :bartender, photo_attachment: :blob).order(created_at: :desc)
     render json: cocktails
   end
 
