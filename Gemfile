@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby '3.2.2'
+ruby '3.3.0'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails', branch: 'main'
 # gem "rails", github: "rails/rails", branch: "main"
@@ -34,15 +34,18 @@ gem "stimulus-rails"
 gem 'bcrypt', '~> 3.1.7'
 
 # Use Active Storage variant
-# gem 'image_processing', '~> 1.2'
+gem 'image_processing', '~> 1.2'
+# for lipvips
+gem 'ruby-vips', '~> 2.0', '>= 2.0.17'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', '>= 1.4.4', require: false
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin AJAX possible
 gem 'rack-cors'
-
+# wrapper for ImageMagick for image processing
 gem "mini_magick"
+
 gem 'activerecord-reset-pk-sequence'
 gem 'active_model_serializers'
 gem 'active_storage_validations'
@@ -51,11 +54,12 @@ gem "jwt", "~> 2.2"
 gem 'faraday'
 gem 'dotenv-rails', :groups => [:development, :test]
 
-#gem Bullet specs for rails 7
-gem 'sqlite3'
-gem 'activerecord-jdbcsqlite3-adapter', platforms: [:jruby]
-gem 'activerecord-import'
+# gem 'sqlite3'
+# gem 'activerecord-jdbcsqlite3-adapter', platforms: [:jruby]
 
+# allows bulk insert of data into database
+gem 'activerecord-import'
+# a testing framework for Rails
 gem "rspec"
 
 
