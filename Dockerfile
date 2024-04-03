@@ -1,13 +1,12 @@
 # Make sure it matches the Ruby version in .ruby-version and Gemfile
-ARG RUBY_VERSION=3.2.2
-FROM ruby:3-slim
+ARG RUBY_VERSION=3.3.0
+FROM ruby:3.3.0-slim
 
 # Install libvips for Active Storage preview support and PostgreSQL development headers
 RUN apt-get update -qq && \
     apt-get install -y build-essential libvips bash bash-completion libffi-dev tzdata postgresql libpq-dev nodejs npm yarn && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
-
 # Rails app lives here
 WORKDIR /rails
 
@@ -19,6 +18,9 @@ WORKDIR /rails
 
 # Install application gems
 COPY Gemfile* .
+# configure bundler to use the Ruby platform to address gem installation issues, such as native extensions
+RUN bundle config set --local force_ruby_platform true
+# Install gems
 RUN bundle install
 
 #Copy application code

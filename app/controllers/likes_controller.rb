@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class LikesController < ApplicationController
   def index
-    @likes = Like.order(:id).includes([:liked_cocktail, :liker])
+    @likes = Like.order(:id).includes(%i[liked_cocktail liker])
     render json: @likes
   end
 
@@ -10,8 +12,7 @@ class LikesController < ApplicationController
   end
 
   def create
-    # byebug
-    @like = Like.create(liker_id: params["liker_id"], liked_cocktail_id: params["liked_cocktail_id"])
+    @like = Like.create(liker_id: params['liker_id'], liked_cocktail_id: params['liked_cocktail_id'])
     render json: @like
   end
 
@@ -24,6 +25,6 @@ class LikesController < ApplicationController
   private
 
   def find_cocktail
-    @cocktail = Cocktail.find(params["liked_cocktail_id"])
+    @cocktail = Cocktail.find(params['liked_cocktail_id'])
   end
 end
