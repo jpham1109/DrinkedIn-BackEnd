@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class UserSerializer < ActiveModel::Serializer
-  attributes :id, :full_name, :username, :location, :bartender, :profile_pic
+  attributes :id, :full_name, :username, :location, :bartender, :avatar
 
   has_many :bars
   # override the bars method to only return the ids of the bars
@@ -26,10 +28,6 @@ class UserSerializer < ActiveModel::Serializer
   has_many :following_users
 
   def avatar
-    if object.avatar.attached?
-      {
-        url: Rails.application.routes.url_helpers.url_for(object.avatar),
-      }
-    end
+    object.processed_image_url
   end
 end

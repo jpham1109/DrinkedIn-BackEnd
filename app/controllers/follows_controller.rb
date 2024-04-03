@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class FollowsController < ApplicationController
   def index
-    @follows = Follow.order(:id).includes([:follower, :followee])
+    @follows = Follow.order(:id).includes(%i[follower followee])
     render json: @follows
   end
 
@@ -10,7 +12,7 @@ class FollowsController < ApplicationController
   end
 
   def create
-    @follow = Follow.create(follower_id: params["follower_id"], followee_id: params["followee_id"])
+    @follow = Follow.create(follower_id: params['follower_id'], followee_id: params['followee_id'])
     render json: @follow
   end
 
