@@ -1,0 +1,12 @@
+require:
+  - rubocop-rails
+
+AllCops:
+  TargetRubyVersion: 3.3
+  NewCops: enable
+  Exclude:
+    - "db/schema.rb"
+    - "db/migrate/**/*"
+    - "vendor/**/*"
+    - "bin/**/*"
+    - "node_modules/**/*"
