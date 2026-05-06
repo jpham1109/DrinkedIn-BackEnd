@@ -26,7 +26,7 @@ module DrinkedInBackend
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 6.1
     config.active_support.cache_format_version = 6.1
-    config.action_mailer.default_url_options = { host: 'http://localhost:3000' }
+    config.action_mailer.default_url_options = { host: 'http://localhost:3010' }
 
     # Configuration for the application, engines, and railties goes here.
     #
