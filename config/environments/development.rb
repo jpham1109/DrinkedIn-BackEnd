@@ -73,5 +73,10 @@ Rails.application.configure do
 end
 
 Rails.application.routes.default_url_options = {
-  host: (ENV['HOST_URL']).to_s
+  # Set the host and protocol for URL generation in development
+  # This is used for generating URLs in mailers and other places.
+  # The host should not include the protocol (http:// or https://).
+  # The protocol can be set to "http" as it's development.
+  host: ENV.fetch('HOST_URL', 'localhost:3010').gsub(%r{https?://}, ''), 
+  protocol: "http"
 }
