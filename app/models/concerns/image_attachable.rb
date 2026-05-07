@@ -24,17 +24,20 @@ module ImageAttachable
   def processed_image_url
     return unless image.attached?
 
-    Rails.application.routes.url_helpers.url_for(process_image(image))
+    Rails.application.routes.url_helpers.url_for(image_variant(image))
+  rescue StandardError => e
+    Rails.logger.error "Image processing failed for #{self.class.name} ##{id}: #{e.message}"
+    nil
   end
 
   private
 
-  def process_image(image, _content_type = image.content_type)
+  def image_variant(image, _content_type = image.content_type)
     image.variant(
       resize_to_limit: [500, 500],
       convert: 'webp',
       saver: { quality: 80 }
-    ).processed
+    )
   end
 
   def create_blob_from_image(image, filename, content_type)
