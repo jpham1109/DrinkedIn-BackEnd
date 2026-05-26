@@ -63,7 +63,6 @@ gem 'active_storage_validations'
 gem 'awesome_print'
 # pure ruby implementation of the RFC 7519 OAuth JSON Web Token (JWT) standard
 gem 'dotenv-rails', groups: %i[development test]
-gem 'faraday'
 gem 'jwt', '~> 2.8', '>= 2.8.1'
 
 # allows bulk insert of data into database

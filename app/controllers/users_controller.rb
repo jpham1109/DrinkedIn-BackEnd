@@ -27,22 +27,10 @@ class UsersController < ApplicationController
       render json: { error: 'User could not be created. Please try again.' }, status: :unprocessable_entity
     end
 
-    if user.instagram_account
-      insta_info = user.instagram_info
-      user.update(biography: insta_info['data']['user']['biography'],
-                  insta_follower: insta_info['data']['user']['edge_followed_by']['count'], insta_following: insta_info['data']['user']['edge_follow']['count'], profile_pic: insta_info['data']['user']['profile_pic_url'])
-    end
-
     return unless params[:work_at]
 
     bar = Bar.find_by(name: params[:work_at])
-
-    if bar.nil?
-      bar = Bar.create(name: params[:work_at])
-      bar.update(address: bar.address, website: bar.website, rating: bar.rating, total_ratings: bar.total_ratings,
-                 photos: bar.photo_array, reviews: bar.reviews)
-    end
-
+    bar = Bar.create(name: params[:work_at]) if bar.nil?
     @workplace = Workplace.create(bar_id: bar.id, bartender_id: user.id)
   end
 

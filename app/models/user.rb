@@ -27,14 +27,4 @@ class User < ApplicationRecord
   # concern for image attachment
   include ImageAttachable
   has_one_attached :image
-
-  def instagram_info
-    return unless instagram_account
-
-    insta_api_url = "https://instagram28.p.rapidapi.com/user_info?user_name=#{instagram_account}"
-    response = Faraday.get(insta_api_url, { 'x-rapidapi-host' => 'instagram28.p.rapidapi.com' },
-                           { 'x-rapidapi-key' => ENV['INSTA_KEY'] })
-    JSON.parse(response.body)
-    # res["candidates"][0]["place_id"]
-  end
 end
