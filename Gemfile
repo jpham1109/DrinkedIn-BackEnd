@@ -67,13 +67,13 @@ gem 'jwt', '~> 2.8', '>= 2.8.1'
 
 # allows bulk insert of data into database
 gem 'activerecord-import'
-# a testing framework for Rails
-gem 'rspec'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'debug', '~> 1.9', '>= 1.9.2'
-  gem 'rspec-rails', '~> 5.0.0'
+  gem 'rspec-rails', '~> 6.0'
+  gem 'factory_bot_rails'
+  gem 'faker'
 end
 
 group :development do
