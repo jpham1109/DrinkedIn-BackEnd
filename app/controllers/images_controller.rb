@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# NOTE: This controller is broken legacy code and is out of scope for the current phase.
+# It references `cocktail.photo`, `user.avatar`, and `user.profile_pic` — none of which
+# exist on the current models. All image handling is done via ImageAttachable using the
+# `image` attachment. Both endpoints would raise NoMethodError if called. No authentication
+# guard is present either. Flagged for removal in a separate cleanup PR.
 class ImagesController < ApplicationController
   def update
     cocktail = Cocktail.find(params[:id])

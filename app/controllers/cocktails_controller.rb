@@ -22,22 +22,36 @@ class CocktailsController < ApplicationController
     cocktail.category_id = cocktail_params[:category_id]
     cocktail.ingredients = @ingredients_array
 
+    if cocktail_params[:photo].present?
+      upload_errors = cocktail.image_upload_errors(cocktail_params[:photo])
+      return render json: { errors: upload_errors }, status: :unprocessable_entity if upload_errors.any?
+
+      cocktail.attach_image(cocktail_params[:photo])
+    end
+
     if cocktail.save
-      cocktail.attach_image(cocktail_params[:photo]) if cocktail_params[:photo].present?
       render json: cocktail, status: :created
     else
-      render json: { error: 'failed to create cocktail' }, status: :not_acceptable
+      render json: { errors: cocktail.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
   def update
     updated_params = cocktail_params.except(:photo)
     updated_params[:ingredients] = @ingredients_array if cocktail_params[:ingredients].present?
-    if @cocktail.update(updated_params)
-      @cocktail.attach_image(cocktail_params[:photo]) if cocktail_params[:photo].present?
+    @cocktail.assign_attributes(updated_params)
+
+    if cocktail_params[:photo].present?
+      upload_errors = @cocktail.image_upload_errors(cocktail_params[:photo])
+      return render json: { errors: upload_errors }, status: :unprocessable_entity if upload_errors.any?
+
+      @cocktail.attach_image(cocktail_params[:photo])
+    end
+
+    if @cocktail.save
       render json: @cocktail
     else
-      render json: { error: 'failed to update cocktail' }, status: :unprocessable_entity
+      render json: { errors: @cocktail.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
