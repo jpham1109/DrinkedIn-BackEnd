@@ -1,0 +1,10 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
+      "note": "Rails 7.0.8 EOL is a known issue. Upgrade to Rails 7.2 is planned and tracked in Phase 1 of the roadmap. This warning is deferred, not dismissed."
+    }
+  ],
+  "updated": "2026-06-02",
+  "brakeman_version": "6.2.2"
+}
