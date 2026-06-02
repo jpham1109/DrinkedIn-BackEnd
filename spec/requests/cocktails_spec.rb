@@ -69,6 +69,59 @@ RSpec.describe 'Cocktails', type: :request do
     end
   end
 
+  describe 'photo upload validation' do
+    let(:user) { create(:user) }
+    let(:category) { create(:category) }
+    let(:base_params) do
+      { cocktail: { name: 'Sunset Spritz', description: 'Refreshing', execution: 'Shake',
+                    ingredients: 'gin,tonic', category_id: category.id } }
+    end
+
+    context 'on POST /cocktails' do
+      it 'rejects a non-image content type with 422 and errors key' do
+        post '/cocktails',
+             params: base_params.deep_merge(cocktail: { photo: invalid_type_upload }),
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(JSON.parse(response.body)).to have_key('errors')
+      end
+
+      it 'rejects a GIF with 422' do
+        post '/cocktails',
+             params: base_params.deep_merge(cocktail: { photo: gif_upload }),
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'rejects an oversized file with 422 and errors key' do
+        post '/cocktails',
+             params: base_params.deep_merge(cocktail: { photo: oversized_upload }),
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(JSON.parse(response.body)).to have_key('errors')
+      end
+    end
+
+    context 'on PATCH /cocktails/:id' do
+      let(:cocktail) { create(:cocktail, bartender: user) }
+
+      it 'rejects a non-image content type with 422 and errors key' do
+        patch "/cocktails/#{cocktail.id}",
+              params: { cocktail: { photo: invalid_type_upload } },
+              headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(JSON.parse(response.body)).to have_key('errors')
+      end
+
+      it 'rejects an oversized file with 422' do
+        patch "/cocktails/#{cocktail.id}",
+              params: { cocktail: { photo: oversized_upload } },
+              headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
+
   describe 'DELETE /cocktails/:id' do
     let(:owner) { create(:user) }
     let(:other_user) { create(:user) }

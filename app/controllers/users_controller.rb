@@ -18,7 +18,6 @@ class UsersController < ApplicationController
     user = User.create(user_params)
 
     if user.save
-      # invoke issue_token helper method defined in ApplicationController
       token = issue_token(user)
       render json: { user: UserSerializer.new(user), jwt: token }, status: :created
     elsif user.errors.messages
@@ -35,21 +34,24 @@ class UsersController < ApplicationController
   end
 
   def me
-    # token present in headers would be used to find the current user
     render json: current_user
   end
 
   def update
-    # token present in headers would be used to find the current user
-    # prepare user params without avatar for updating
     updated_params = user_params.except(:avatar)
-    # update the user with the prepared params
-    if current_user.update(updated_params)
-      # attach or update the avatar if present
-      current_user.attach_image(user_params[:avatar]) if user_params[:avatar].present?
+    current_user.assign_attributes(updated_params)
+
+    if user_params[:avatar].present?
+      upload_errors = current_user.image_upload_errors(user_params[:avatar])
+      return render json: { errors: upload_errors }, status: :unprocessable_entity if upload_errors.any?
+
+      current_user.attach_image(user_params[:avatar])
+    end
+
+    if current_user.save
       render json: current_user
     else
-      render json: { error: 'failed to update user' }, status: :unprocessable_entity
+      render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
@@ -61,7 +63,6 @@ class UsersController < ApplicationController
   private
 
   def user_params
-    # omit id from user params for security
     params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar)
   end
 end
