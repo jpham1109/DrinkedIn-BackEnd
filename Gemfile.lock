@@ -85,7 +85,8 @@ GEM
     bcrypt (3.1.20)
     bootsnap (1.17.0)
       msgpack (~> 1.2)
-    brakeman (3.7.2)
+    brakeman (6.2.2)
+      racc
     builder (3.2.4)
     bullet (7.1.6)
       activesupport (>= 3.0.0)
@@ -298,7 +299,7 @@ DEPENDENCIES
   awesome_print
   bcrypt (~> 3.1.7)
   bootsnap (>= 1.4.4)
-  brakeman (~> 3.3, >= 3.3.2)
+  brakeman (~> 6.0)
   bullet (~> 7.1, >= 7.1.6)
   debug (~> 1.9, >= 1.9.2)
   dotenv-rails

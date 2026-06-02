@@ -42,7 +42,7 @@ gem 'ruby-vips', '~> 2.0', '>= 2.0.17'
 # library and registry for information about MIME content type definitions
 gem 'mime-types'
 # detect security vulnerabilities in Rails application via static analysis
-gem 'brakeman', '~> 3.3', '>= 3.3.2'
+gem 'brakeman', '~> 6.0'
 
 # static code analyzer and formatter for Ruby
 gem 'rubocop', '~> 1.62', '>= 1.62.1', require: false
