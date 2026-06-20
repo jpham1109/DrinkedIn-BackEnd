@@ -24,8 +24,6 @@ Rails.application.routes.draw do
   patch '/cocktails/:id', to: 'cocktails#update'
   delete '/cocktails/:id', to: 'cocktails#destroy'
 
-  patch 'image/:id', to: 'images#update'
-  patch 'avatar/:id', to: 'images#user'
   # post 'rails/active_storage/direct_uploads', to: 'direct_uploads#create'
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
 end
