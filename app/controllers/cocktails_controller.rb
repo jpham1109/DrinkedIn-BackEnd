@@ -9,11 +9,11 @@ class CocktailsController < ApplicationController
 
   def index
     cocktails = Cocktail.includes(:category, :bartender, image_attachment: :blob).order(created_at: :desc)
-    render json: cocktails
+    render_collection(cocktails)
   end
 
   def show
-    render json: @cocktail, except: %i[created_at updated_at]
+    render_success(@cocktail)
   end
 
   def create
@@ -24,15 +24,15 @@ class CocktailsController < ApplicationController
 
     if cocktail_params[:photo].present?
       upload_errors = cocktail.image_upload_errors(cocktail_params[:photo])
-      return render json: { errors: upload_errors }, status: :unprocessable_entity if upload_errors.any?
+      return render_upload_errors(upload_errors) if upload_errors.any?
 
       cocktail.attach_image(cocktail_params[:photo])
     end
 
     if cocktail.save
-      render json: cocktail, status: :created
+      render_success(cocktail, status: :created)
     else
-      render json: { errors: cocktail.errors.full_messages }, status: :unprocessable_entity
+      render_validation_errors(cocktail)
     end
   end
 
@@ -43,21 +43,21 @@ class CocktailsController < ApplicationController
 
     if cocktail_params[:photo].present?
       upload_errors = @cocktail.image_upload_errors(cocktail_params[:photo])
-      return render json: { errors: upload_errors }, status: :unprocessable_entity if upload_errors.any?
+      return render_upload_errors(upload_errors) if upload_errors.any?
 
       @cocktail.attach_image(cocktail_params[:photo])
     end
 
     if @cocktail.save
-      render json: @cocktail
+      render_success(@cocktail)
     else
-      render json: { errors: @cocktail.errors.full_messages }, status: :unprocessable_entity
+      render_validation_errors(@cocktail)
     end
   end
 
   def destroy
     @cocktail.destroy
-    render json: {}, status: :no_content
+    head :no_content
   end
 
   private
@@ -79,6 +79,12 @@ class CocktailsController < ApplicationController
   end
 
   def require_cocktail_owner
-    render json: { error: 'Forbidden' }, status: :forbidden unless @cocktail.bartender_id == current_user.id
+    return if @cocktail.bartender_id == current_user.id
+
+    render_error(
+      code: 'forbidden',
+      message: 'You are not authorized to modify this cocktail.',
+      status: :forbidden
+    )
   end
 end

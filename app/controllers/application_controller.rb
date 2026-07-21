@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::API
+  include ApiResponses
+
   # secret key saved away in a credentials file
   def jwt_key
     Rails.application.credentials.jwt_key
@@ -36,6 +38,12 @@ class ApplicationController < ActionController::API
   end
 
   def require_login
-    render json: { error: 'Unauthorized' }, status: :unauthorized unless logged_in?
+    return if logged_in?
+
+    render_error(
+      code: 'authentication_required',
+      message: 'You must be logged in to perform this action.',
+      status: :unauthorized
+    )
   end
 end
