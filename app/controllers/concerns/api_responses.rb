@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# Shared response helpers included in ApplicationController.
+#
+# Error envelope shape: { errors: [{ code:, message: }] }
+# Success envelope shape: { data: ... } with optional { meta: ... }
+# Contract is documented in ai/api-contract.md.
 module ApiResponses
   extend ActiveSupport::Concern
 
@@ -9,16 +14,20 @@ module ApiResponses
     render json: payload, status: status
   end
 
-  def render_collection(resources, meta: {})
-    render json: { data: serialized(resources), meta: meta }
+  # meta is omitted when nil or empty — Phase 1 pagination will pass meta: { pagination: { ... } }
+  def render_collection(resources, meta: nil)
+    payload = { data: serialized(resources) }
+    payload[:meta] = meta if meta.present?
+    render json: payload
   end
 
-  def render_error(code:, message:, status:, field: nil)
-    error = { code: code, message: message }
-    error[:field] = field if field
-    render json: { errors: [error] }, status: status
+  # Use for single-error responses (auth, ownership, not_found, etc.).
+  # For field-level validation errors use render_validation_errors.
+  def render_error(code:, message:, status:)
+    render json: { errors: [{ code: code, message: message }] }, status: status
   end
 
+  # Maps ActiveModel errors to per-field error objects in the errors array.
   def render_validation_errors(record)
     errors = record.errors.map do |error|
       { code: 'validation_failed', field: error.attribute.to_s, message: error.full_message }
@@ -43,6 +52,9 @@ module ApiResponses
     end
   end
 
+  # Derives error code from the message text produced by ImageAttachable.
+  # TODO: replace with a structured error object from ImageAttachable in Phase 1
+  #       so this doesn't have to parse human-readable strings.
   def upload_error_code(message)
     if message.match?(/JPEG|PNG|WebP/i)
       'upload_invalid_type'
