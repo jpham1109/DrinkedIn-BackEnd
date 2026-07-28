@@ -60,3 +60,12 @@ Rails.application.configure do
   # Annotate rendered view with file names.
   # config.action_view.annotate_rendered_view_with_filenames = true
 end
+
+# Needed for url_for/root_url calls made outside a controller context (e.g.
+# ImageAttachable#processed_image_url, CategorySerializer#popular_drinks).
+# Hardcoded and independent of .env so test behavior stays deterministic
+# regardless of what HOST_URL happens to be set to in a given environment.
+Rails.application.routes.default_url_options = {
+  host: 'test.host',
+  protocol: 'http'
+}
