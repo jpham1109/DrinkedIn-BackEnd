@@ -30,6 +30,7 @@ class CocktailsController < ApplicationController
     end
 
     if cocktail.save
+      ProcessImageVariantJob.perform_later(cocktail) if cocktail_params[:photo].present?
       render_success(cocktail, status: :created)
     else
       render_validation_errors(cocktail)
@@ -49,6 +50,7 @@ class CocktailsController < ApplicationController
     end
 
     if @cocktail.save
+      ProcessImageVariantJob.perform_later(@cocktail) if cocktail_params[:photo].present?
       render_success(@cocktail)
     else
       render_validation_errors(@cocktail)

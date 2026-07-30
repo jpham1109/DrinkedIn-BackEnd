@@ -39,6 +39,10 @@ gem 'bcrypt', '~> 3.1.7'
 gem 'image_processing', '~> 1.2'
 # for lipvips
 gem 'ruby-vips', '~> 2.0', '>= 2.0.17'
+# Active Storage S3 service (production image/avatar storage)
+gem 'aws-sdk-s3', require: false
+# Postgres-backed Active Job backend (production + development)
+gem 'good_job'
 # library and registry for information about MIME content type definitions
 gem 'mime-types'
 # detect security vulnerabilities in Rails application via static analysis

@@ -49,6 +49,7 @@ class UsersController < ApplicationController
     end
 
     if current_user.save
+      ProcessImageVariantJob.perform_later(current_user) if user_params[:avatar].present?
       render json: current_user
     else
       render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
