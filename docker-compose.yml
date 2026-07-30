@@ -23,8 +23,18 @@ services:
     # Mapping the current directory to the container so we can edit the code and see the changes in the container
     volumes:
       - .:/rails
-    ports: 
+    ports:
       - "3010:3000"
+    depends_on:
+      - db
+  worker:
+    env_file: .env
+    build: .
+    # Runs the same GoodJob adapter as production so missing-worker and
+    # job-lifecycle issues are caught locally instead of first in deploy.
+    command: bundle exec good_job start
+    volumes:
+      - .:/rails
     depends_on:
       - db
 volumes:

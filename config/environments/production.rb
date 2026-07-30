@@ -32,8 +32,8 @@ Rails.application.configure do
   # config.action_dispatch.x_sendfile_header = 'X-Sendfile' # for Apache
   # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for NGINX
 
-  # Store uploaded files on the local file system (see config/storage.yml for options).
-  config.active_storage.service = :local
+  # Store uploaded files in S3 (see config/storage.yml for options).
+  config.active_storage.service = :amazon
 
   # Mount Action Cable outside main process or domain.
   # config.action_cable.mount_path = nil
@@ -54,8 +54,15 @@ Rails.application.configure do
   # config.cache_store = :mem_cache_store
 
   # Use a real queuing backend for Active Job (and separate queues per environment).
-  # config.active_job.queue_adapter     = :resque
+  config.active_job.queue_adapter     = :good_job
   # config.active_job.queue_name_prefix = "DrinkedIn_BackEnd_production"
+
+  # :external means the web process only enqueues jobs, never executes them —
+  # execution happens exclusively in the dedicated `bundle exec good_job
+  # start` worker process. Without this, GoodJob would also run an in-process
+  # scheduler inside the web dyno, competing with HTTP request handling for
+  # the same threads — the opposite of why this job exists.
+  config.good_job.execution_mode = :external
 
   config.action_mailer.perform_caching = false
 

@@ -164,6 +164,50 @@ RSpec.describe 'Cocktails', type: :request do
     end
   end
 
+  describe 'background variant processing' do
+    let(:user) { create(:user) }
+    let(:category) { create(:category) }
+    let(:base_params) do
+      { cocktail: { name: 'Paloma', description: 'Bright and citrusy', execution: 'Build over ice',
+                    ingredients: 'tequila,grapefruit soda', category_id: category.id } }
+    end
+
+    it 'enqueues ProcessImageVariantJob when a valid photo is uploaded on create' do
+      expect do
+        post '/cocktails',
+             params: base_params.deep_merge(cocktail: { photo: valid_image_upload }),
+             headers: auth_headers_for(user)
+      end.to have_enqueued_job(ProcessImageVariantJob)
+      expect(response).to have_http_status(:created)
+    end
+
+    it 'does not enqueue ProcessImageVariantJob when no photo is uploaded on create' do
+      expect do
+        post '/cocktails', params: base_params, headers: auth_headers_for(user)
+      end.not_to have_enqueued_job(ProcessImageVariantJob)
+    end
+
+    it 'does not enqueue ProcessImageVariantJob when an invalid photo is rejected' do
+      expect do
+        post '/cocktails',
+             params: base_params.deep_merge(cocktail: { photo: invalid_type_upload }),
+             headers: auth_headers_for(user)
+      end.not_to have_enqueued_job(ProcessImageVariantJob)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'enqueues ProcessImageVariantJob when a valid photo is uploaded on update' do
+      cocktail = create(:cocktail, bartender: user)
+
+      expect do
+        patch "/cocktails/#{cocktail.id}",
+              params: { cocktail: { photo: valid_image_upload } },
+              headers: auth_headers_for(user)
+      end.to have_enqueued_job(ProcessImageVariantJob)
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
   describe 'DELETE /cocktails/:id' do
     let(:owner) { create(:user) }
     let(:other_user) { create(:user) }

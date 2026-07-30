@@ -38,6 +38,16 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
+  # Same adapter as production (GoodJob) rather than the default :async, so
+  # missing-worker and job-lifecycle issues are caught locally before deploy.
+  # Requires the `worker` service in docker-compose.yml to be running.
+  config.active_job.queue_adapter = :good_job
+
+  # :external means this process only enqueues jobs, never executes them —
+  # without this, GoodJob defaults to also running an in-process scheduler
+  # here, which would silently mask a stopped/missing `worker` process.
+  config.good_job.execution_mode = :external
+
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
 
