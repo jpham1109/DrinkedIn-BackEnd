@@ -18,6 +18,14 @@ Rails.application.routes.draw do
   patch '/me', to: 'users#update'
   delete '/me', to: 'users#destroy'
 
+  get '/csrf_token', to: 'csrf_tokens#show'
+
+  # Test-only: establishes a real, correctly-signed session cookie via the
+  # actual session middleware, for specs that need a session-authenticated
+  # request before SessionsController#create itself establishes sessions
+  # (see ai/auth-migration-plan.md PR 2). Not routed outside test env.
+  post '/test_support/session', to: 'test_support/sessions#create' if Rails.env.test?
+
   get '/cocktails', to: 'cocktails#index'
   get '/cocktails/:id', to: 'cocktails#show'
   post '/cocktails', to: 'cocktails#create'

@@ -9,10 +9,11 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins (ENV['CLIENT_URL']).to_s
+    origins ENV.fetch('CLIENT_URL', nil).to_s
 
     resource '*',
              headers: :any,
-             methods: %i[get post put patch delete options head]
+             methods: %i[get post put patch delete options head],
+             credentials: true
   end
 end
