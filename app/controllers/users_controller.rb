@@ -4,6 +4,12 @@ class UsersController < ApplicationController
   wrap_parameters :user,
                   include: %i[full_name username password workplace bartender instagram_account avatar]
 
+  # Same reasoning as SessionsController#create — signup also auto-issues
+  # a bearer JWT with no prior session and no CSRF token available under
+  # the current frontend. See ai/auth-migration-plan.md PR 1's "Known gap"
+  # note.
+  skip_forgery_protection only: :signup
+
   def index
     users = User.includes(:bars, :cocktails, :likes, :followed_users, :following_users, :image_attachment).order(:id)
     render json: users, except: %i[created_at updated_at]

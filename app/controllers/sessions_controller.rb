@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 class SessionsController < ApplicationController
+  # Login necessarily happens before any session exists, so current_user
+  # is always blank here and CSRF can't yet be satisfied by a token this
+  # not-yet-authenticated request has no way to have fetched under the
+  # current (pre-PR-3/4) frontend. Skipped here, narrowly, so PR 1 keeps
+  # its own promise that the existing bearer-JWT login flow keeps working
+  # unchanged. Real login-CSRF protection is deferred, not abandoned — see
+  # ai/auth-migration-plan.md PR 1's "Known gap" note for when this comes
+  # back.
+  skip_forgery_protection only: :create
+
   def create
     user = User.find_by(username: session_params[:username])
     if user&.authenticate(session_params[:password])
