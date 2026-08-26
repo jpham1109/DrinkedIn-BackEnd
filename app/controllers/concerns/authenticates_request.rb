@@ -47,8 +47,10 @@ module AuthenticatesRequest
   end
 
   # method to encode a token for a user when they login or signup
+  # exp claim: decision #23 — 24h transitional window, revisit alongside
+  # real refresh-token rotation once bearer auth is mobile-only.
   def issue_token(user)
-    JWT.encode({ user_id: user.id }, jwt_key, 'HS256')
+    JWT.encode({ user_id: user.id, exp: 24.hours.from_now.to_i }, jwt_key, 'HS256')
   end
 
   private

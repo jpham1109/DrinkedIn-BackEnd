@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   get '/me', to: 'sessions#show'
   patch '/me', to: 'users#update'
   delete '/me', to: 'users#destroy'
+  delete '/logout', to: 'sessions#destroy'
 
   get '/csrf_token', to: 'csrf_tokens#show'
 

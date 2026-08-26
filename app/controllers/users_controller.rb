@@ -4,12 +4,6 @@ class UsersController < ApplicationController
   wrap_parameters :user,
                   include: %i[full_name username password workplace bartender instagram_account avatar]
 
-  # Same reasoning as SessionsController#create — signup also auto-issues
-  # a bearer JWT with no prior session and no CSRF token available under
-  # the current frontend. See ai/auth-migration-plan.md PR 1's "Known gap"
-  # note.
-  skip_forgery_protection only: :signup
-
   def index
     users = User.includes(:bars, :cocktails, :likes, :followed_users, :following_users, :image_attachment).order(:id)
     render json: users, except: %i[created_at updated_at]
@@ -20,23 +14,21 @@ class UsersController < ApplicationController
     render json: user, except: %i[created_at updated_at]
   end
 
+  # PR 1's skip_forgery_protection only: :signup is removed here (PR 2) —
+  # signup now establishes a session, so it must be CSRF-protected. Ships
+  # in the same deploy as the frontend's CSRF/credentials transport
+  # (ai/auth-migration-plan.md PR 2, "Sequencing correction").
   def signup
-    user = User.create(user_params)
-
+    user = User.new(user_params)
     if user.save
+      reset_session
+      session[:user_id] = user.id
+      create_workplace_if_requested(user)
       token = issue_token(user)
-      render json: { user: UserSerializer.new(user), jwt: token }, status: :created
-    elsif user.errors.messages
-      render json: { errors: user.errors.messages }, status: :unprocessable_entity
+      render_success({ user: UserSerializer.new(user), jwt: token }, status: :created)
     else
-      render json: { error: 'User could not be created. Please try again.' }, status: :unprocessable_entity
+      render_validation_errors(user)
     end
-
-    return unless params[:work_at]
-
-    bar = Bar.find_by(name: params[:work_at])
-    bar = Bar.create(name: params[:work_at]) if bar.nil?
-    @workplace = Workplace.create(bar_id: bar.id, bartender_id: user.id)
   end
 
   def me
@@ -71,5 +63,26 @@ class UsersController < ApplicationController
 
   def user_params
     params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar)
+  end
+
+  # Only ever called from the success branch of #signup (see above) — the
+  # previous version of this logic ran unconditionally regardless of
+  # whether signup succeeded, which could create an orphaned Bar record
+  # on a failed signup. Fixed as part of the PR 2 restructuring
+  # (ai/auth-migration-plan.md PR 2, item 2).
+  def create_workplace_if_requested(user)
+    return unless params[:work_at]
+
+    bar = Bar.find_or_create_by(name: params[:work_at])
+    Workplace.create(bar_id: bar.id, bartender_id: user.id)
+  end
+
+  # Same reasoning as SessionsController#create — see there for the full
+  # comment. current_user is always blank on a signup attempt by
+  # definition.
+  def prefer_authentication_error_over_csrf?
+    return false if action_name == 'signup'
+
+    super
   end
 end
