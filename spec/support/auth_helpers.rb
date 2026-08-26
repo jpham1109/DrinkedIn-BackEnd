@@ -25,6 +25,15 @@ module AuthHelpers
     post '/test_support/session', params: { user_id: user.id }
     raise "log_in_via_session failed: #{response.status}" unless response.status == 204
   end
+
+  # Fetches a CSRF token tied to the current request spec's session cookie
+  # jar (establishing an anonymous session on first call). Required before
+  # any CSRF-protected mutation now that PR 2 removed login/signup's
+  # temporary exemption.
+  def fetch_csrf_token
+    get '/csrf_token'
+    JSON.parse(response.body).dig('data', 'csrf_token')
+  end
 end
 
 RSpec.configure do |config|

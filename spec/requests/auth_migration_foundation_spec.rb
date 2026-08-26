@@ -3,11 +3,17 @@ require 'rails_helper'
 # Covers PR 1 of ai/auth-migration-plan.md: session/cookie/CSRF middleware,
 # the AuthenticatesRequest concern's dual-mode resolution and precedence,
 # the CSRF exemption's success-based (not header-presence-based) design,
-# and the GET /csrf_token endpoint. Uses GET /me (SessionsController#show,
-# unmodified in this PR) to observe current_user resolution, and
-# PATCH /cocktails/:id (already login+ownership-protected) as an existing
-# mutating endpoint to observe CSRF enforcement — neither SessionsController
-# nor CocktailsController is changed by this PR.
+# and the GET /csrf_token endpoint. Uses GET /me (SessionsController#show)
+# to observe current_user resolution, and PATCH /cocktails/:id (already
+# login+ownership-protected) as an existing mutating endpoint to observe
+# CSRF enforcement — CocktailsController is not changed by PR 1 or PR 2.
+#
+# /me's envelope and status assertions below reflect PR 2's migration of
+# SessionsController#show to render_success (200 + { data: {...} }),
+# replacing the pre-PR-2 `render json: current_user, status: :accepted`
+# (flat body, 202) this file originally asserted — updated here rather
+# than left pointing at superseded behavior, since PR 2's /me change is
+# intentional and covered in session_login_signup_logout_spec.rb.
 RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
   let(:user) { create(:user) }
 
@@ -17,8 +23,8 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
 
       get '/me'
 
-      expect(response).to have_http_status(:accepted)
-      expect(JSON.parse(response.body)['id']).to eq(user.id)
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig('data', 'id')).to eq(user.id)
     end
 
     it 'falls through to bearer resolution when the session references a deleted user' do
@@ -28,8 +34,8 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
 
       get '/me', headers: auth_headers_for(other_user)
 
-      expect(response).to have_http_status(:accepted)
-      expect(JSON.parse(response.body)['id']).to eq(other_user.id)
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig('data', 'id')).to eq(other_user.id)
     end
   end
 
@@ -37,8 +43,8 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
     it 'resolves current_user via a valid bearer token' do
       get '/me', headers: auth_headers_for(user)
 
-      expect(response).to have_http_status(:accepted)
-      expect(JSON.parse(response.body)['id']).to eq(user.id)
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig('data', 'id')).to eq(user.id)
     end
 
     it 'returns unauthorized for a request with no Authorization header at all' do
@@ -75,8 +81,8 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
 
       get('/me', headers:)
 
-      expect(response).to have_http_status(:accepted)
-      expect(JSON.parse(response.body)['id']).to eq(user.id)
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig('data', 'id')).to eq(user.id)
     end
   end
 
@@ -87,7 +93,7 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
 
       get '/me', headers: auth_headers_for(user_b)
 
-      expect(JSON.parse(response.body)['id']).to eq(user.id)
+      expect(JSON.parse(response.body).dig('data', 'id')).to eq(user.id)
     end
   end
 
