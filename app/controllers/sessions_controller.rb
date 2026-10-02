@@ -13,13 +13,17 @@ class SessionsController < ApplicationController
   # the frontend's CSRF/credentials transport (ai/auth-migration-plan.md
   # PR 2, "Sequencing correction") — there is no safe intermediate state
   # between the two.
+  #
+  # The jwt field (PR 2's temporary compatibility with the pre-cutover
+  # bearer-JWT frontend) is removed here (PR 5) — the frontend has used
+  # session/CSRF auth exclusively since PR 3/4, so there's no remaining
+  # consumer of it.
   def create
     user = User.find_by(username: session_params[:username])
     if user&.authenticate(session_params[:password])
       reset_session
       session[:user_id] = user.id
-      token = issue_token(user)
-      render_success({ user: UserSerializer.new(user), jwt: token }, status: :ok)
+      render_success({ user: UserSerializer.new(user) }, status: :ok)
     else
       # Unknown username and wrong password return the same error —
       # deliberately not distinguished, to avoid formalizing username

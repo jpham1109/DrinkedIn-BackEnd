@@ -46,7 +46,7 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
       expect(post_login_cookie).not_to eq(pre_login_cookie)
     end
 
-    it 'returns the full nested envelope shape, not just presence of data.jwt' do
+    it 'returns the full nested envelope shape, with no jwt field (removed in PR 5)' do
       csrf_token = fetch_csrf_token
 
       post '/login',
@@ -56,7 +56,9 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
       body = JSON.parse(response.body)
       expect(body.dig('data', 'user', 'id')).to eq(user.id)
       expect(body.dig('data', 'user', 'username')).to eq(user.username)
-      expect(body.dig('data', 'jwt')).to match(/\A[\w-]+\.[\w-]+\.[\w-]+\z/)
+      # Explicit negative check, not just absence-by-omission — proves the
+      # field was actually removed rather than just never asserted on.
+      expect(body['data']).not_to have_key('jwt')
     end
 
     it 'returns 200, not the inherited 202' do
@@ -136,14 +138,16 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
   describe 'POST /signup' do
     let(:signup_params) { { user: { username: 'brandnewuser', full_name: 'New User', password: 'password123' } } }
 
-    it 'establishes a real session and returns 201 with the full envelope shape' do
+    it 'establishes a real session and returns 201 with the full envelope shape, with no jwt field (removed in PR 5)' do
       csrf_token = fetch_csrf_token
       post '/signup', params: signup_params, headers: { 'X-CSRF-Token' => csrf_token }
 
       expect(response).to have_http_status(:created)
       body = JSON.parse(response.body)
       expect(body.dig('data', 'user', 'username')).to eq('brandnewuser')
-      expect(body.dig('data', 'jwt')).to match(/\A[\w-]+\.[\w-]+\.[\w-]+\z/)
+      # Explicit negative check, not just absence-by-omission — proves the
+      # field was actually removed rather than just never asserted on.
+      expect(body['data']).not_to have_key('jwt')
 
       get '/me'
       expect(response).to have_http_status(:ok)
@@ -255,28 +259,25 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
     end
   end
 
+  # issue_token has had no HTTP caller since PR 5 removed the temporary
+  # jwt response field from SessionsController#create/UsersController#signup
+  # — it's kept only as reserved mobile-auth infrastructure
+  # (ai/auth-migration-plan.md PR 5). These exercise the real production
+  # method directly (issue_token_for, spec/support/auth_helpers.rb) rather
+  # than via an HTTP login response, which no longer carries a token. No
+  # login/logout round trip is needed to isolate the bearer path either —
+  # these examples never call /login, so there's no session for
+  # current_user to resolve first, and resolution falls straight to bearer.
   describe 'issue_token exp claim (decision #23)' do
     it 'sets exp to approximately 24 hours from issuance' do
-      csrf_token = fetch_csrf_token
-      post '/login',
-           params: { session: { username: user.username, password: 'password123' } },
-           headers: { 'X-CSRF-Token' => csrf_token }
-
-      jwt = JSON.parse(response.body).dig('data', 'jwt')
+      jwt = issue_token_for(user)
       payload, = JWT.decode(jwt, Rails.application.credentials.jwt_key, true, { algorithm: 'HS256' })
 
       expect(payload['exp']).to be_within(5).of(24.hours.from_now.to_i)
     end
 
     it 'still accepts the token via bearer auth shortly before it expires' do
-      csrf_token = fetch_csrf_token
-      post '/login',
-           params: { session: { username: user.username, password: 'password123' } },
-           headers: { 'X-CSRF-Token' => csrf_token }
-      jwt = JSON.parse(response.body).dig('data', 'jwt')
-
-      logout_csrf_token = fetch_csrf_token
-      delete '/logout', headers: { 'X-CSRF-Token' => logout_csrf_token }
+      jwt = issue_token_for(user)
 
       travel_to 23.hours.from_now do
         get '/me', headers: { 'Authorization' => "Bearer #{jwt}" }
@@ -285,14 +286,7 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
     end
 
     it 'rejects the token via bearer auth once 25 hours have actually elapsed, not just by claim value' do
-      csrf_token = fetch_csrf_token
-      post '/login',
-           params: { session: { username: user.username, password: 'password123' } },
-           headers: { 'X-CSRF-Token' => csrf_token }
-      jwt = JSON.parse(response.body).dig('data', 'jwt')
-
-      logout_csrf_token = fetch_csrf_token
-      delete '/logout', headers: { 'X-CSRF-Token' => logout_csrf_token }
+      jwt = issue_token_for(user)
 
       travel_to 25.hours.from_now do
         get '/me', headers: { 'Authorization' => "Bearer #{jwt}" }
