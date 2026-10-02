@@ -18,14 +18,18 @@ class UsersController < ApplicationController
   # signup now establishes a session, so it must be CSRF-protected. Ships
   # in the same deploy as the frontend's CSRF/credentials transport
   # (ai/auth-migration-plan.md PR 2, "Sequencing correction").
+  #
+  # The jwt field (PR 2's temporary compatibility with the pre-cutover
+  # bearer-JWT frontend) is removed here (PR 5) — the frontend has used
+  # session/CSRF auth exclusively since PR 3/4, so there's no remaining
+  # consumer of it.
   def signup
     user = User.new(user_params)
     if user.save
       reset_session
       session[:user_id] = user.id
       create_workplace_if_requested(user)
-      token = issue_token(user)
-      render_success({ user: UserSerializer.new(user), jwt: token }, status: :created)
+      render_success({ user: UserSerializer.new(user) }, status: :created)
     else
       render_validation_errors(user)
     end

@@ -34,6 +34,18 @@ module AuthHelpers
     get '/csrf_token'
     JSON.parse(response.body).dig('data', 'csrf_token')
   end
+
+  # Issues a real token via the production issue_token method (not a
+  # hand-rolled equivalent) via a throwaway controller instance — no
+  # request/session state is needed, issue_token only depends on the user
+  # and jwt_key. issue_token has had no HTTP caller since PR 5 removed the
+  # temporary jwt response field, but stays as reserved mobile-auth
+  # infrastructure (ai/auth-migration-plan.md PR 5); this lets specs still
+  # exercise its real exp-claim behavior directly, without going through an
+  # HTTP login response.
+  def issue_token_for(user)
+    ApplicationController.new.issue_token(user)
+  end
 end
 
 RSpec.configure do |config|
