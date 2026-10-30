@@ -29,9 +29,10 @@ RSpec.describe 'Follows', type: :request do
   end
 
   describe 'DELETE /follows/:id' do
-    let(:owner) { create(:user) }
+    let(:follower) { create(:user) }
+    let(:followee) { create(:user) }
     let(:other_user) { create(:user) }
-    let(:follow) { create(:follow, follower: owner) }
+    let(:follow) { create(:follow, follower:, followee:) }
 
     context 'when unauthenticated' do
       it 'returns 401' do
@@ -40,17 +41,27 @@ RSpec.describe 'Follows', type: :request do
       end
     end
 
-    context 'when authenticated as the owner' do
+    context 'when authenticated as the follower (unfollow)' do
       it 'destroys the follow' do
-        delete "/follows/#{follow.id}", headers: auth_headers_for(owner)
+        delete "/follows/#{follow.id}", headers: auth_headers_for(follower)
         expect(response).to have_http_status(:no_content)
+        expect(Follow.exists?(follow.id)).to be false
       end
     end
 
-    context 'when authenticated as a non-owner' do
-      it 'returns 403' do
+    context 'when authenticated as the followee (remove follower)' do
+      it 'destroys the follow' do
+        delete "/follows/#{follow.id}", headers: auth_headers_for(followee)
+        expect(response).to have_http_status(:no_content)
+        expect(Follow.exists?(follow.id)).to be false
+      end
+    end
+
+    context 'when authenticated as an unrelated user' do
+      it 'returns 403 and leaves the follow intact' do
         delete "/follows/#{follow.id}", headers: auth_headers_for(other_user)
         expect(response).to have_http_status(:forbidden)
+        expect(Follow.exists?(follow.id)).to be true
       end
     end
   end
