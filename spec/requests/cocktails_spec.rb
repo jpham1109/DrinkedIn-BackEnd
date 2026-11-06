@@ -27,6 +27,16 @@ RSpec.describe 'Cocktails', type: :request do
       body = JSON.parse(response.body)
       expect(body).to have_key('data')
     end
+
+    # Exposed for deterministic client-side ranking (e.g. Home's featured-
+    # cocktail tie-break: likes_count desc, then created_at desc, then id) —
+    # previously only likes_count/id were available, with no way to order by
+    # recency at all.
+    it 'includes created_at' do
+      get "/cocktails/#{cocktail.id}"
+      body = JSON.parse(response.body)
+      expect(body['data']['created_at']).to be_present
+    end
   end
 
   describe 'POST /cocktails' do
