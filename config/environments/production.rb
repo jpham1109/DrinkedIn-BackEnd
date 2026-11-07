@@ -120,3 +120,18 @@ Rails.application.configure do
   # config.active_record.database_resolver = ActiveRecord::Middleware::DatabaseSelector::Resolver
   # config.active_record.database_resolver_context = ActiveRecord::Middleware::DatabaseSelector::Resolver::Session
 end
+
+# Needed for url_for/root_url calls made outside a controller context —
+# ImageAttachable#processed_image_url and CategorySerializer#popular_drinks
+# both call Rails.application.routes.url_helpers.url_for, which raises
+# without a configured host. development.rb and test.rb both already set
+# this (see those files); production.rb never did, meaning every request
+# serializing a cocktail or category (CategorySerializer#configured_origin
+# explicitly raises on a blank host) would 500 on a real deploy. No
+# fallback default on purpose — fail loudly at boot if HOST_URL is
+# missing in production, rather than silently resolving image URLs
+# against a wrong host.
+Rails.application.routes.default_url_options = {
+  host: ENV.fetch('HOST_URL').gsub(%r{https?://}, ''),
+  protocol: 'https'
+}

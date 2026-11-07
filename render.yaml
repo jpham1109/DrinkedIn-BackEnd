@@ -1,0 +1,118 @@
+# Render Blueprint for the DrinkedIn Rails API.
+#
+# Defines three resources: the Rails web service, the GoodJob worker
+# (same image, different command — preserves the existing
+# execution_mode: :external split between web/worker from
+# config/environments/production.rb, matching docker-compose.yml's local
+# dev setup), and a managed Postgres database.
+#
+# This is a best-effort Blueprint written against Render's documented
+# syntax as of this writing — validate it in the Render dashboard's "New
+# Blueprint" flow (it will surface any schema errors directly) before
+# relying on it. The architecture and env var list are the load-bearing
+# part; exact YAML key names occasionally drift with Render's product
+# changes.
+#
+# Deploy order matters: create this Blueprint first (or at least the web
+# service), note its public URL, THEN set that URL as HOST_URL here and
+# as REACT_APP_BACKEND_URL in the frontend repo's render.yaml before
+# building the frontend — REACT_APP_BACKEND_URL is baked in at CRA build
+# time, not read at runtime.
+#
+# See ai/deployment-plan.md (Phase5-DrinkedIn root) for the full
+# account-setup steps, required manual secrets, cost notes, and the
+# deploy smoke-test procedure.
+
+databases:
+  - name: drinkedin-db
+    databaseName: drinkedin_production
+    user: drinkedin
+    plan: starter # Render's free Postgres plan is time-limited and capped on
+      # storage/rows — fine for initial verification, but confirm current
+      # free-tier terms in your dashboard before deciding; `starter` here
+      # is a placeholder for "pick a plan", not a cost commitment I'm
+      # making on your behalf.
+
+services:
+  # --- Rails API (web) ---
+  - type: web
+    name: drinkedin-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # Render's free Web Service tier spins down after
+      # inactivity, which would also kill the Puma process GoodJob's web
+      # side enqueues through — acceptable for a quiet portfolio demo, but
+      # confirm you're fine with cold-start latency on the free tier
+      # before choosing it over a paid always-on plan.
+    healthCheckPath: /up
+    autoDeploy: true
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: 'true'
+      - key: RAILS_SERVE_STATIC_FILES
+        value: 'false' # frontend is a separate Static Site; Rails serves no assets
+      - key: RAILS_MASTER_KEY
+        sync: false # set manually in the dashboard — see
+        # ai/deployment-plan.md's secrets section before reusing the
+        # existing development master key here
+      - key: DATABASE_URL
+        fromDatabase:
+          name: drinkedin-db
+          property: connectionString
+      - key: HOST_URL
+        value: '' # fill in once this service has a Render URL (or a
+        # custom domain); required at boot — see production.rb
+      - key: CLIENT_URL
+        value: '' # fill in with the frontend Static Site's exact URL —
+        # required for CORS (config/initializers/cors.rb)
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1 # or your chosen region/S3-compatible provider's region
+      - key: AWS_BUCKET
+        sync: false
+
+  # --- GoodJob worker ---
+  # Same image as the web service; overrides the Dockerfile's default CMD
+  # (`rails server`) to run the worker process instead — mirrors
+  # docker-compose.yml's `worker` service exactly. Rails'
+  # execution_mode: :external (production.rb) means jobs are ONLY
+  # processed here, never in-process inside the web dyno.
+  - type: worker
+    name: drinkedin-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: bundle exec good_job start
+    plan: starter # Render's free tier does not support Background Worker
+      # services at all as of this writing — confirm current availability;
+      # this will likely require a paid plan decision from you.
+    autoDeploy: true
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: 'true'
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: drinkedin-db
+          property: connectionString
+      - key: HOST_URL
+        value: '' # same value as the web service's HOST_URL
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
+      - key: AWS_BUCKET
+        sync: false

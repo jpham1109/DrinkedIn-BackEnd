@@ -46,9 +46,21 @@ module DrinkedInBackend
     # migration (see ai/auth-migration-plan.md) — bearer JWT remains the
     # only path that works without this, this makes session-based auth
     # possible without disabling api_only.
+    #
+    # same_site: :lax worked everywhere this ran locally because
+    # localhost:3030 (frontend) and localhost:3010 (backend) are
+    # same-site to each other — "site" is scheme + registrable domain,
+    # port doesn't count, so both are just "localhost". On Render the
+    # frontend (Static Site) and backend (Web Service) are two different
+    # registrable domains (*.onrender.com subdomains are same eTLD+1 but
+    # distinct hosts — still genuinely cross-site for cookie purposes), so
+    # a Lax cookie is simply never sent on the frontend's cross-origin
+    # fetch/XHR requests there — login would silently never persist.
+    # SameSite=None requires Secure, which `secure: Rails.env.production?`
+    # already guarantees.
     config.session_store :cookie_store,
                          key: '_drinkedin_session',
-                         same_site: :lax,
+                         same_site: Rails.env.production? ? :none : :lax,
                          httponly: true,
                          secure: Rails.env.production?
     config.middleware.use ActionDispatch::Cookies
