@@ -41,7 +41,20 @@ Rails.application.configure do
   # config.action_cable.allowed_request_origins = [ 'http://example.com', /http:\/\/example.*/ ]
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  # config.force_ssl = true
+  # ActionDispatch::SSL checks the X-Forwarded-Proto header to tell a
+  # terminated-HTTPS request (the normal case behind Render's reverse
+  # proxy, which forwards plain HTTP internally) from a genuine plain-HTTP
+  # one — the standard Heroku/Render pairing, no trusted_proxies config
+  # needed. Not yet confirmed against a live Render deploy; verify during
+  # the first real smoke test that this doesn't produce a redirect loop.
+  config.force_ssl = true
+
+  # Render's own health checker may hit the container directly over plain
+  # HTTP rather than through the public HTTPS edge — if so, force_ssl
+  # would turn /up into a 301 the checker likely won't follow, marking a
+  # healthy instance as down. Excluded defensively; same fix Heroku users
+  # apply for the identical reason. Harmless either way.
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path == '/up' } } }
 
   # Include generic and useful information about system operation, but avoid logging too much
   # information to avoid inadvertent exposure of personally identifiable information (PII).

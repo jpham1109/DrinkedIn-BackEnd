@@ -1,50 +1,70 @@
-# Render Blueprint for the DrinkedIn Rails API.
+# Render Blueprint for the Kinpour Rails API (formerly DrinkedIn — see
+# ai/deployment-plan.md's rebrand section; this infra pass only renames
+# production resources, it does not touch in-app branding).
 #
 # Defines three resources: the Rails web service, the GoodJob worker
 # (same image, different command — preserves the existing
 # execution_mode: :external split between web/worker from
 # config/environments/production.rb, matching docker-compose.yml's local
-# dev setup), and a managed Postgres database.
+# dev setup), and a managed Postgres database. All three pinned to the
+# same region (ohio) as the production S3 bucket, and as each other —
+# same-region is what makes the `fromDatabase`/connectionString wiring
+# below resolve to Render's private network instead of the public one.
 #
 # This is a best-effort Blueprint written against Render's documented
-# syntax as of this writing — validate it in the Render dashboard's "New
-# Blueprint" flow (it will surface any schema errors directly) before
-# relying on it. The architecture and env var list are the load-bearing
-# part; exact YAML key names occasionally drift with Render's product
-# changes.
+# syntax as of this writing (region/fromDatabase semantics verified
+# directly against Render's current Blueprint docs this round) —
+# validate it in the Render dashboard's "New Blueprint" flow (it will
+# surface any schema errors directly) before relying on it.
 #
 # Deploy order matters: create this Blueprint first (or at least the web
 # service), note its public URL, THEN set that URL as HOST_URL here and
 # as REACT_APP_BACKEND_URL in the frontend repo's render.yaml before
 # building the frontend — REACT_APP_BACKEND_URL is baked in at CRA build
-# time, not read at runtime.
+# time, not read at runtime. Once kinpour.com/api.kinpour.com are live as
+# custom domains, HOST_URL/CLIENT_URL move to those instead of the
+# .onrender.com URLs — see ai/deployment-plan.md for that transition.
 #
 # See ai/deployment-plan.md (Phase5-DrinkedIn root) for the full
-# account-setup steps, required manual secrets, cost notes, and the
-# deploy smoke-test procedure.
+# account-setup steps, the least-privilege S3 IAM policy, required manual
+# secrets, cost notes, and the deploy smoke-test procedure.
 
 databases:
-  - name: drinkedin-db
-    databaseName: drinkedin_production
-    user: drinkedin
-    plan: starter # Render's free Postgres plan is time-limited and capped on
-      # storage/rows — fine for initial verification, but confirm current
-      # free-tier terms in your dashboard before deciding; `starter` here
-      # is a placeholder for "pick a plan", not a cost commitment I'm
-      # making on your behalf.
+  - name: kinpour-db
+    databaseName: kinpour_production
+    user: kinpour
+    region: ohio
+    plan: starter # smallest paid tier — approved; the free Postgres plan
+      # is time-limited, not viable for a real deploy. Confirm current
+      # Starter pricing in your dashboard before provisioning; upgrade
+      # memory only if verification shows a need.
 
 services:
   # --- Rails API (web) ---
   - type: web
-    name: drinkedin-backend
+    name: kinpour-api
     runtime: docker
+    region: ohio
     dockerfilePath: ./Dockerfile
-    plan: starter # Render's free Web Service tier spins down after
-      # inactivity, which would also kill the Puma process GoodJob's web
-      # side enqueues through — acceptable for a quiet portfolio demo, but
-      # confirm you're fine with cold-start latency on the free tier
-      # before choosing it over a paid always-on plan.
+    plan: starter # approved — always-on, no spin-down (the free Web
+      # Service tier spins down after inactivity, which would also kill
+      # the Puma process GoodJob's web side enqueues through). Confirm
+      # current Starter pricing in your dashboard; upgrade memory only if
+      # verification shows a need.
     healthCheckPath: /up
+    # Runs once, on a single ephemeral instance, before any new web
+    # instance takes traffic — the one clear source of truth for
+    # migrations on Render (see bin/docker-entrypoint's RENDER-env guard,
+    # which steps aside in favor of this). Also present on the worker
+    # service below: Render deploys each service independently, so
+    # there's no guaranteed ordering between the two — both need their
+    # own preDeployCommand so neither can start against a pre-migration
+    # database on a first-ever deploy. Safe to run from both: Rails'
+    # migrator takes a Postgres advisory lock internally, so two
+    # preDeployCommands racing is expected to serialize safely rather
+    # than conflict — confirm this directly during the first live deploy
+    # rather than trusting it blind.
+    preDeployCommand: bundle exec rails db:prepare
     autoDeploy: true
     envVars:
       - key: RAILS_ENV
@@ -57,26 +77,29 @@ services:
         value: 'false' # frontend is a separate Static Site; Rails serves no assets
       - key: RAILS_MASTER_KEY
         sync: false # set manually in the dashboard — see
-        # ai/deployment-plan.md's secrets section before reusing the
-        # existing development master key here
+        # ai/deployment-plan.md's secrets section; this is the per-environment
+        # production key, generated fresh, never the existing dev master key
       - key: DATABASE_URL
         fromDatabase:
-          name: drinkedin-db
+          name: kinpour-db
           property: connectionString
       - key: HOST_URL
-        value: '' # fill in once this service has a Render URL (or a
-        # custom domain); required at boot — see production.rb
+        value: '' # fill in once this service has a Render URL (or the
+        # api.kinpour.com custom domain once that's live); required at
+        # boot — see production.rb
       - key: CLIENT_URL
-        value: '' # fill in with the frontend Static Site's exact URL —
-        # required for CORS (config/initializers/cors.rb)
+        value: '' # fill in with the frontend Static Site's exact URL (or
+        # https://kinpour.com once live) — required for CORS
+        # (config/initializers/cors.rb)
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
       - key: AWS_REGION
-        value: us-east-1 # or your chosen region/S3-compatible provider's region
+        value: us-east-2 # Ohio — matches the Render region above and the
+        # production S3 bucket's actual region
       - key: AWS_BUCKET
-        sync: false
+        sync: false # the user's existing bucket name — not a new resource
 
   # --- GoodJob worker ---
   # Same image as the web service; overrides the Dockerfile's default CMD
@@ -85,13 +108,18 @@ services:
   # execution_mode: :external (production.rb) means jobs are ONLY
   # processed here, never in-process inside the web dyno.
   - type: worker
-    name: drinkedin-worker
+    name: kinpour-worker
     runtime: docker
+    region: ohio
     dockerfilePath: ./Dockerfile
     dockerCommand: bundle exec good_job start
-    plan: starter # Render's free tier does not support Background Worker
-      # services at all as of this writing — confirm current availability;
-      # this will likely require a paid plan decision from you.
+    plan: starter # approved. Render's free tier does not support
+      # Background Worker services at all as of this writing — this plan
+      # choice isn't optional the way it might be for the web service.
+      # Confirm current Starter pricing in your dashboard; upgrade memory
+      # only if verification shows a need.
+    preDeployCommand: bundle exec rails db:prepare # see the web service's
+      # identical line above for why this is duplicated, not redundant
     autoDeploy: true
     envVars:
       - key: RAILS_ENV
@@ -104,7 +132,7 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: drinkedin-db
+          name: kinpour-db
           property: connectionString
       - key: HOST_URL
         value: '' # same value as the web service's HOST_URL
@@ -113,6 +141,6 @@ services:
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
       - key: AWS_REGION
-        value: us-east-1
+        value: us-east-2
       - key: AWS_BUCKET
         sync: false
