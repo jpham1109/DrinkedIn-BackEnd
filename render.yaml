@@ -53,17 +53,21 @@ services:
       # verification shows a need.
     healthCheckPath: /up
     # Runs once, on a single ephemeral instance, before any new web
-    # instance takes traffic — the one clear source of truth for
-    # migrations on Render (see bin/docker-entrypoint's RENDER-env guard,
-    # which steps aside in favor of this). Also present on the worker
-    # service below: Render deploys each service independently, so
-    # there's no guaranteed ordering between the two — both need their
-    # own preDeployCommand so neither can start against a pre-migration
-    # database on a first-ever deploy. Safe to run from both: Rails'
-    # migrator takes a Postgres advisory lock internally, so two
-    # preDeployCommands racing is expected to serialize safely rather
-    # than conflict — confirm this directly during the first live deploy
-    # rather than trusting it blind.
+    # instance takes traffic — the WEB service is the single migration
+    # owner (bin/docker-entrypoint's RENDER-env guard steps aside in
+    # favor of this). Deliberately NOT duplicated on the worker service
+    # below — verified directly against this app's actual Rails 7.0.8
+    # install that running `db:prepare` from both services concurrently
+    # is not safe: on a fresh/empty database, db:prepare's schema-load
+    # path (ActiveRecord::Tasks::DatabaseTasks#load_schema) has zero
+    # concurrency protection at all (a real `relation already exists`
+    # race risk); even once a schema exists, Rails' migration advisory
+    # lock uses PostgreSQL's non-blocking `pg_try_advisory_lock` — the
+    # losing process raises ActiveRecord::ConcurrentMigrationError and
+    # exits nonzero rather than waiting its turn, which would fail that
+    # service's deploy. See bin/wait-for-migrations (used by the worker
+    # below) for how the worker instead waits for this to finish, rather
+    # than racing it.
     preDeployCommand: bundle exec rails db:prepare
     autoDeploy: true
     envVars:
@@ -107,19 +111,27 @@ services:
   # docker-compose.yml's `worker` service exactly. Rails'
   # execution_mode: :external (production.rb) means jobs are ONLY
   # processed here, never in-process inside the web dyno.
+  #
+  # No preDeployCommand here, deliberately — see the web service's own
+  # comment above for why running db:prepare from both services isn't
+  # safe. Instead, dockerCommand starts bin/wait-for-migrations, which
+  # blocks (bounded, ~5 minutes) until the database is reachable and has
+  # no pending migrations, THEN execs `good_job start` — so a worker
+  # that boots before the web service's preDeployCommand has finished
+  # (a real possibility: Render deploys each service in a Blueprint
+  # independently, with no ordering guarantee between them) waits
+  # instead of racing or crash-looping against missing tables.
   - type: worker
     name: kinpour-worker
     runtime: docker
     region: ohio
     dockerfilePath: ./Dockerfile
-    dockerCommand: bundle exec good_job start
+    dockerCommand: bin/wait-for-migrations
     plan: starter # approved. Render's free tier does not support
       # Background Worker services at all as of this writing — this plan
       # choice isn't optional the way it might be for the web service.
       # Confirm current Starter pricing in your dashboard; upgrade memory
       # only if verification shows a need.
-    preDeployCommand: bundle exec rails db:prepare # see the web service's
-      # identical line above for why this is duplicated, not redundant
     autoDeploy: true
     envVars:
       - key: RAILS_ENV
