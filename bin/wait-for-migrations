@@ -1,0 +1,42 @@
+#!/bin/bash
+set -u
+
+# Used only as the GoodJob worker service's startup wrapper on Render
+# (see render.yaml's worker `dockerCommand`) — the web service is the
+# single migration owner (its own `preDeployCommand` runs
+# `rails db:prepare`); the worker does NOT run migrations itself.
+#
+# Why this exists: Render deploys each service in a Blueprint
+# independently, with no ordering guarantee between them, so a
+# fresh/first-ever deploy could have the worker starting before the web
+# service's preDeployCommand has created the database/run migrations at
+# all. Verified directly against this app's actual Rails 7.0.8 install
+# (lib/active_record/tasks/database_tasks.rb, lib/active_record/migration.rb):
+# running `rails db:prepare` concurrently from both services is NOT
+# safe — on a genuinely empty database, db:prepare's schema-load path
+# (ActiveRecord::Tasks::DatabaseTasks#load_schema) has zero concurrency
+# protection at all (a race there is a real `relation already exists`
+# risk), and even once a schema exists, Rails' migration advisory lock
+# (PostgreSQL's `pg_try_advisory_lock`) is non-blocking — the losing
+# process raises ActiveRecord::ConcurrentMigrationError and exits
+# nonzero instead of waiting, which would fail that service's deploy.
+#
+# So instead: one owner (web) migrates; the worker just waits here,
+# polling until the database is reachable and has no pending
+# migrations, before actually starting GoodJob.
+MAX_ATTEMPTS=100   # ~5 minutes at the 3s interval below
+ATTEMPT=0
+
+until bundle exec rails runner 'exit 1 if ActiveRecord::Base.connection.migration_context.needs_migration?' >/tmp/wait-for-migrations.log 2>&1; do
+  ATTEMPT=$((ATTEMPT + 1))
+  if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
+    echo "wait-for-migrations: giving up after ${MAX_ATTEMPTS} attempts — database never became ready. Last error:" >&2
+    cat /tmp/wait-for-migrations.log >&2
+    exit 1
+  fi
+  echo "wait-for-migrations: database not ready yet (attempt ${ATTEMPT}/${MAX_ATTEMPTS}), retrying in 3s..."
+  sleep 3
+done
+
+echo "wait-for-migrations: migrations up to date, starting worker."
+exec bundle exec good_job start

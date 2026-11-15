@@ -4,8 +4,13 @@ set -e
 # Remove a potentially pre-existing server.pid for Rails.
 rm -f tmp/pids/server.pid
 
-# If running the rails server then create or migrate existing database
-if [ "${*}" == "./bin/rails server -b 0.0.0.0" ]; then
+# If running the rails server then create or migrate existing database.
+# Skipped on Render (ENV['RENDER'] is set automatically on every Render
+# service) — there, render.yaml's preDeployCommand is the one clear
+# source of truth for migrations, running once per release before any
+# instance takes traffic, rather than on every container boot/restart.
+# Local docker-compose dev is unaffected (no RENDER var there).
+if [ "${*}" == "./bin/rails server -b 0.0.0.0" ] && [ -z "${RENDER}" ]; then
   ./bin/rails db:create
   ./bin/rails db:prepare
 fi

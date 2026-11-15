@@ -21,6 +21,11 @@ Rails.application.routes.draw do
 
   get '/csrf_token', to: 'csrf_tokens#show'
 
+  # Render's healthCheckPath (render.yaml) — Rails 7.1+ ships a built-in
+  # `get "up"` route for this; this app is pinned to '~> 7.0.0' (Gemfile),
+  # so it doesn't exist yet. Minimal controller, see health_controller.rb.
+  get '/up', to: 'health#show'
+
   # Test-only: establishes a real, correctly-signed session cookie via the
   # actual session middleware, for specs that need a session-authenticated
   # request before SessionsController#create itself establishes sessions

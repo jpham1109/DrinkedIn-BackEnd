@@ -85,7 +85,13 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
+  # Render's managed Postgres provides one connection string
+  # (DATABASE_URL), not separate POSTGRES_HOST/USER/PASSWORD vars like
+  # local dev's docker-compose.yml does. `url:` takes precedence over the
+  # inherited `*default` host/username/password keys, so this works in
+  # both environments without conditional logic: DATABASE_URL is unset
+  # locally (ERB evaluates to nil, Rails falls back to the merged
+  # *default block's POSTGRES_* vars), and set on Render.
   <<: *default
+  url: <%= ENV['DATABASE_URL'] %>
   database: DrinkedIn_BackEnd_production
-  # username: DrinkedIn_BackEnd
-  # password: <%= ENV['DRINKEDIN_BACKEND_DATABASE_PASSWORD'] %>
