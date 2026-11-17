@@ -8,7 +8,8 @@ class CocktailsController < ApplicationController
   wrap_parameters :cocktail, include: %i[name description execution ingredients category image]
 
   def index
-    cocktails = Cocktail.includes(:category, :bartender, image_attachment: :blob).order(created_at: :desc)
+    cocktails = Cocktail.includes(:category, :submitted_by, :creator_user, image_attachment: :blob)
+                        .order(created_at: :desc)
     render_collection(cocktails)
   end
 
@@ -18,7 +19,7 @@ class CocktailsController < ApplicationController
 
   def create
     cocktail = Cocktail.new(cocktail_params.except(:photo))
-    cocktail.bartender_id = current_user.id
+    cocktail.submitted_by_id = current_user.id
     cocktail.category_id = cocktail_params[:category_id]
     cocktail.ingredients = @ingredients_array
 
@@ -65,7 +66,10 @@ class CocktailsController < ApplicationController
   private
 
   def cocktail_params
-    params.require(:cocktail).permit(:id, :name, :description, :execution, :ingredients, :category_id, :photo)
+    params.require(:cocktail).permit(
+      :id, :name, :description, :execution, :ingredients, :category_id, :photo,
+      :creator_user_id, :creator_name, :creator_unknown
+    )
   end
 
   def convert_to_array
@@ -81,7 +85,7 @@ class CocktailsController < ApplicationController
   end
 
   def require_cocktail_owner
-    return if @cocktail.bartender_id == current_user.id
+    return if @cocktail.submitted_by_id == current_user.id
 
     render_error(
       code: 'forbidden',

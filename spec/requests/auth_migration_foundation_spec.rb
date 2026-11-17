@@ -109,7 +109,7 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
 
   describe 'CSRF enforcement on cookie/session-authenticated mutations' do
     let(:owner) { create(:user) }
-    let(:cocktail) { create(:cocktail, bartender: owner) }
+    let(:cocktail) { create(:cocktail, submitted_by: owner) }
 
     it 'rejects a session-authenticated mutation with no CSRF token, with csrf_invalid' do
       log_in_via_session(owner)

@@ -4,7 +4,7 @@ FactoryBot.define do
     description { Faker::Lorem.sentence }
     execution { Faker::Lorem.sentence }
     ingredients { ['vodka', 'lime juice', 'soda water'] }
-    association :bartender, factory: :user
+    association :submitted_by, factory: :user
     association :category
   end
 end
