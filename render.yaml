@@ -68,7 +68,21 @@ services:
     # service's deploy. See bin/wait-for-migrations (used by the worker
     # below) for how the worker instead waits for this to finish, rather
     # than racing it.
-    preDeployCommand: bundle exec rails db:prepare
+    #
+    # `&& bundle exec rails db:seed` added 2026-11-17 (ai/v1-redesign-plan.md's
+    # "Separate workstream: production seed safety") — deliberate, not a
+    # reliance on db:prepare's own conditional seed-trigger. Verified
+    # directly against this app's installed Rails 7.0.8 source that
+    # db:prepare only auto-seeds when `migrate` raises
+    # ActiveRecord::NoDatabaseError (the named database doesn't exist at
+    # all) — Render provisions the Postgres database before the web
+    # service's first boot, so that path likely never fires here, and
+    # the Category taxonomy this seed step creates would otherwise never
+    # get initialized in production. db/seeds.rb is now purely
+    # idempotent (find_or_create_by! on Category only — no destructive
+    # operations, no Users/Cocktails/sample data), so running it on
+    # every single deploy is intentional and safe, not just tolerated.
+    preDeployCommand: bundle exec rails db:prepare && bundle exec rails db:seed
     autoDeploy: true
     envVars:
       - key: RAILS_ENV
