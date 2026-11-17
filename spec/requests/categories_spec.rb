@@ -2,42 +2,30 @@ require 'rails_helper'
 
 RSpec.describe 'Categories', type: :request do
   describe 'GET /categories' do
-    it 'rebuilds a relative popular_drinks image path into a fully-qualified URL' do
-      create(:category, popular_drinks: [{ name: 'Old Fashioned', image: 'photos/cocktails/old-fashioned.jpg' }])
-
-      get '/categories'
-
-      image = json_response.first['popular_drinks'].first['image']
-      expect(image).to eq('http://test.host/photos/cocktails/old-fashioned.jpg')
-    end
-
-    it 'rehosts a legacy absolute URL without double-prefixing' do
-      create(:category,
-             popular_drinks: [{ name: 'Old Fashioned', image: 'http://localhost:3000/photos/cocktails/old-fashioned.jpg' }])
-
-      get '/categories'
-
-      image = json_response.first['popular_drinks'].first['image']
-      expect(image).to eq('http://test.host/photos/cocktails/old-fashioned.jpg')
-      expect(image).not_to include('localhost:3000')
-    end
-
-    it 'returns nil for a blank image without raising' do
-      create(:category, popular_drinks: [{ name: 'Mystery Drink', image: nil }])
+    # Replaces the four URL-rebuilding specs that used to live here —
+    # they tested CategorySerializer's absolute_image_url/extract_path
+    # logic, which existed only to serve the now-removed `popular_drinks`
+    # field (ai/v1-redesign-plan.md's category audit, 2026-11-18).
+    # Category previews are dynamic now, sourced from real cocktail
+    # records on the frontend (CategoryCard.jsx) — nothing server-side
+    # computes a preview image anymore.
+    it 'no longer exposes popular_drinks' do
+      create(:category)
 
       get '/categories'
 
       expect(response).to have_http_status(:ok)
-      expect(json_response.first['popular_drinks'].first['image']).to be_nil
+      expect(json_response.first).not_to have_key('popular_drinks')
     end
 
-    it 'returns nil for an unparseable image value without raising' do
-      create(:category, popular_drinks: [{ name: 'Mystery Drink', image: "http://[::not-a-valid-host" }])
+    it 'still exposes id, name, and definition' do
+      create(:category, name: 'Tiki', definition: 'A tropical tradition.')
 
       get '/categories'
 
-      expect(response).to have_http_status(:ok)
-      expect(json_response.first['popular_drinks'].first['image']).to be_nil
+      data = json_response.find { |c| c['name'] == 'Tiki' }
+      expect(data['id']).to be_present
+      expect(data['definition']).to eq('A tropical tradition.')
     end
   end
 
