@@ -16,128 +16,103 @@
 #     (`dev:reset_sample_data`).
 #
 # find_or_create_by! with a block (not a flat attributes hash): the
-# block only runs — setting definition/popular_drinks — when a NEW
-# record is being created. On every later run, `name` alone is the
-# lookup key; an existing row is left untouched, never re-matched
-# against (and therefore never duplicated by) its own definition text.
+# block only runs — setting `definition` — when a NEW record is being
+# created. On every later run, `name` alone is the lookup key; an
+# existing row is left untouched, never re-matched against (and
+# therefore never duplicated by) its own definition text.
 #
-# Content here is intentionally the pre-existing category copy/examples,
-# unchanged from before this PR — the V1 editorial-definitions rewrite
-# and the removal of `popular_drinks` are a separate, dependent PR
-# (`feat/category-editorial-audit`, branched from this one) so this PR
-# stays scoped to the seeding *mechanism*, not the content.
+# V1 editorial definitions below (ai/v1-redesign-plan.md's category
+# audit, 2026-11-18) replace the originals for NEW databases only — an
+# already-existing database's current 19 rows are updated separately, in
+# `db/migrate/20261118000000_update_category_editorial_definitions_v1.rb`
+# (a one-time data migration, not here, so this file never overwrites a
+# future manual editorial edit on every deploy).
+#
+# `popular_drinks` is no longer written here at all (removed 2026-11-18
+# — see the same audit): category previews are now dynamic, sourced from
+# each category's actual cocktail records (CategoryCard.jsx,
+# CategoryDetail.jsx, Home's CategoryIndex.jsx), not a static per-
+# category example list. The column itself still exists on existing rows
+# (unused, not cleared — a separate future schema cleanup, not this PR's
+# concern) but nothing reads or writes it anymore.
 
 category_seeds = [
   { name: 'Ancestral',
-    definition: 'Composed of a base spirit lightly adorned with sugar (in Improved versions, the sweetener ' \
-                'appears in the form of a dash or two of liqueur such as maraschino or curacao), bitters, and ' \
-                'water (usually in its frozen form), and served either straight up or on the rocks.',
-    popular_drinks: [{ name: 'Old Fashioned', image: 'photos/cocktails/old-fashioned.jpg' },
-                     { name: 'Sazerac', image: 'photos/cocktails/sazerac-768x768.jpg' }] },
+    definition: 'Spirit-forward cocktails rooted in the earliest cocktail formula: a base spirit, a modest ' \
+                'amount of sugar or liqueur, bitters, and dilution. Old Fashioneds and Sazeracs exemplify ' \
+                'this foundational style.' },
   { name: 'Duos and Trios',
-    definition: 'Duos are composed of two ingredients, usually a base spirit and a liqueur, and are normally ' \
-                'served in an old-fashioned glass. Trios are duos to which cream or a cream liqueur has been ' \
-                'added. Not all duos can be made into trios. Not all trios start out as duos',
-    popular_drinks: [{ name: 'Godfather', image: 'photos/cocktails/godfather-cocktail.jpg' },
-                     { name: 'White Russian', image: 'photos/cocktails/white_russian.jpg' }] },
+    definition: 'Duos are simple combinations, typically pairing a spirit with a liqueur. Trios build on ' \
+                'this idea by adding cream or a cream liqueur, creating a richer, softer drink.' },
   { name: 'French Italian',
-    definition: 'Composed of a base spirit with a modifier of vermouth, or another fortified wine such as ' \
-                'sherry, quinquina, or port, often accompanied by other ingredients such as bitters or small ' \
-                'doses of liqueurs or syrups.',
-    popular_drinks: [{ name: 'Vesper Martini', image: 'photos/cocktails/lillet-vesper-martini.webp' },
-                     { name: 'Negroni', image: 'photos/cocktails/negroni.jpg' },
-                     { name: 'Manhattan', image: 'photos/cocktails/manhattan.jpg' }] },
+    definition: 'Spirit-forward cocktails featuring vermouth or another aromatized or fortified wine, ' \
+                'sometimes complemented by bitters or liqueurs. This family includes classics such as the ' \
+                'Manhattan, Martini, and Negroni.' },
   { name: 'Simple Sour',
-    definition: 'Contain a base spirit, citrus juice and a non-alcoholic sweetening agent such as simple ' \
-                'syrup, grenadine or orgeat syrup (sometimes egg white is added for body and foam)',
-    popular_drinks: [{ name: 'Daiquiri', image: 'photos/cocktails/daiquiri.webp' },
-                     { name: 'Jack Rose', image: 'photos/cocktails/Calvados-Jack-Rose-Cocktail-2.jpg' },
-                     { name: 'Whiskey Sour', image: 'photos/cocktails/whiskey_sour.jpg' }] },
+    definition: 'Cocktails balancing a base spirit with citrus juice and a nonalcoholic sweetener, such as ' \
+                'sugar, honey, or flavored syrup. Egg white may be added for texture.' },
   { name: 'Enhanced Sour',
-    definition: 'Calls for a spirit, citrus juice, a sweetening agent of any kind , plus vermouth or any ' \
-                'other aromatized or fortified wine',
-    popular_drinks: [{ name: 'Clover Club', image: 'photos/cocktails/Clover-club-cocktail-5.jpg' },
-                     { name: 'Bronx Cocktail', image: 'photos/cocktails/bronx_cocktail.jpg' },
-                     { name: 'Ruby', image: 'photos/cocktails/Ruby_cocktail.jpg' }] },
+    definition: 'Sour-style cocktails that combine spirit, citrus, and sweetness with vermouth or another ' \
+                'aromatized or fortified wine, adding an extra layer of complexity.' },
   { name: 'New Orleans Sour',
-    definition: 'Calls for a base spirit, citrus juice, and an orange-flavored liqueur',
-    popular_drinks: [{ name: 'Cosmopolitan', image: 'photos/cocktails/cosmo.jpg' },
-                     { name: 'Margarita', image: 'photos/cocktails/Margarita.jpg' },
-                     { name: 'Corpse Reviver no.2', image: 'photos/cocktails/corpse_reviver.webp' }] },
+    definition: 'A style of Sour balancing a base spirit and citrus juice with orange liqueur, such as ' \
+                'curaçao or triple sec. Margaritas and Sidecars are classic examples.' },
   { name: 'International Sour',
-    definition: 'Contains a spirit, citrus juice and a liqueur as sweetening agent',
-    popular_drinks: [{ name: 'Hemingway Daiquiri', image: 'photos/cocktails/hemingway_daiquiri.jpeg' },
-                     { name: 'Aviation', image: 'photos/cocktails/aviation.jpg' },
-                     { name: 'Gun Metal Blue', image: 'photos/cocktails/gunmetal_blue.jpg' }] },
+    definition: 'Sours incorporating liqueurs other than orange liqueur as important sources of sweetness ' \
+                'and flavor. Ingredients such as maraschino and herbal liqueurs introduce additional ' \
+                'complexity.' },
   { name: 'Sparkling Sour',
-    definition: 'Contains a spirit, citrus juice, a sweetening agent of any kind and some bubbles either ' \
-                'non-alcoholic or alcoholic',
-    popular_drinks: [{ name: 'French 75', image: 'photos/cocktails/French-75-Sipsmith.jpg' },
-                     { name: 'Ramos Gin Fizz', image: 'photos/cocktails/Ramos-Gin-Fizz-Tonique.jpg' },
-                     { name: 'Airmail', image: 'photos/cocktails/Airmail.jpg' }] },
+    definition: 'Sour-style cocktails combining a spirit, citrus, and sweetness with an effervescent ' \
+                'ingredient such as soda water or sparkling wine. The bubbles add lift and a refreshing ' \
+                'finish.' },
   { name: 'Champagne Cocktail',
-    definition: 'Made with champagne or sparkling wine as the main ingredient with a splash of liqueur ' \
-                'and/or fruit juice, or sugar and bitters',
-    popular_drinks: [{ name: 'Champagne cocktail', image: 'photos/cocktails/Champagne_cocktail.jpg' },
-                     { name: 'Mimosa', image: 'photos/cocktails/mimosa.jpg' }] },
+    definition: 'Cocktails built primarily around Champagne or another sparkling wine, complemented by ' \
+                'ingredients such as bitters, sugar, liqueurs, or fruit juice. These range from the ' \
+                'traditional Champagne Cocktail to the Mimosa.' },
   { name: 'Frozen',
-    definition: 'Cocktails that are blended with ice, perfect for hot summer days',
-    popular_drinks: [{ name: 'Frozen pina colada', image: 'photos/cocktails/Frozen-pina-colada.jpg' },
-                     { name: 'Frozen Strawberry Daiquiri',
-                       image: 'photos/cocktails/Frozen-Strawberry-Daiquiri.webp' }] },
+    definition: 'Cocktails blended with ice to create a smooth, slushy texture. Frozen describes the ' \
+                'preparation rather than a particular recipe family; drinks such as Daiquiris and ' \
+                'Margaritas may also be served this way.' },
   { name: 'Highball',
-    definition: 'Made with a base spirit leavened with ice and a lengthener such as club soda, ginger ale or ' \
-                'cola',
-    popular_drinks: [{ name: 'Cuba Libre', image: 'photos/cocktails/Cuba-libre.jpg' },
-                     { name: 'Dark and Stormy', image: 'photos/cocktails/DarkNStormy.png' },
-                     { name: 'Whiskey Highball', image: 'photos/cocktails/Toki-highball.jpg' }] },
+    definition: 'Tall, refreshing drinks combining a base spirit with a carbonated mixer such as soda, ' \
+                'tonic, ginger ale, or cola. Traditionally served over ice, often with a citrus garnish.' },
   { name: 'Toddy',
-    definition: 'Old-fashioned style of cocktail with distilled spirit, sweetener and hot water, and other ' \
-                'spices',
-    popular_drinks: [{ name: 'Hot Toddy', image: 'photos/cocktails/RP-Hot-toddy.jpg' },
-                     { name: 'Hot Buttered Rum', image: 'photos/cocktails/Hot-buttered-rum.jpg' },
-                     { name: 'Irish Coffee', image: 'photos/cocktails/irish-coffee.jpg' }] },
+    definition: 'Warming cocktails traditionally combining a spirit, hot water, and a sweetener, often with ' \
+                'citrus or aromatic spices. Hot Buttered Rum is a richer variation of this comforting style.' },
   { name: 'Flips and Nogs',
-    definition: 'Made with whole eggs, base spirits, cream and/or milk, sweetening agents such as maple ' \
-                'syrup or sugar',
-    popular_drinks: [{ name: 'Boston Flip', image: 'photos/cocktails/boston-flip.jpeg' },
-                     { name: 'Brandy Flip', image: 'photos/cocktails/Brandy-Flip-2.jpg' }] },
+    definition: 'Two traditional egg-based cocktail families. Flips typically combine a spirit or fortified ' \
+                'wine with sugar and whole egg or yolk, while Nogs add milk or cream for a richer, ' \
+                'custard-like texture.' },
   { name: 'Juleps and Smashes',
-    definition: 'Made of a base spirit, fresh mint, sugar, sometimes with fruits in case of smashes, and a ' \
-                'lot of ice',
-    popular_drinks: [{ name: 'Mint Julep', image: 'photos/cocktails/Mint_Julep.jpg' },
-                     { name: 'Peach Whiskey Smash', image: 'photos/cocktails/grilled-peach-whiskey-smash.webp' }] },
+    definition: 'Refreshing spirit-based cocktails built around fresh herbs, sweetener, and ice. Juleps ' \
+                'traditionally feature mint and crushed ice, while Smashes may incorporate other herbs, ' \
+                'seasonal fruit, and citrus.' },
   { name: 'Punch',
-    definition: 'Refers to a variety of festive drinks, non-alcoholic or alcoholic, generally containing ' \
-                'fruits and fruit juices, spirits and liqueurs if alcoholic, and often topped with sparkling ' \
-                'wine or soda. It is usually served at parties in large, wide bowls, known as punch bowls.',
-    popular_drinks: [{ name: 'Gin Punch', image: 'photos/cocktails/Gin-punch-epicurious.webp' },
-                     { name: 'Tequila Watermelon Punch', image: 'photos/cocktails/Tequila-watermelon-punch.jpg' }] },
+    definition: 'One of the oldest mixed-drink traditions, historically balancing spirit, citrus, sugar, ' \
+                'water, and sometimes spices. Modern punches may incorporate additional juices, liqueurs, ' \
+                'or sparkling ingredients and can be prepared individually or for sharing.' },
   { name: 'Pousse',
-    definition: 'Elaborately composed concoctions made of liqueurs and syrups, layered for a distinctive ' \
-                'appearance',
-    popular_drinks: [{ name: 'Pousse Cafe', image: 'photos/cocktails/Pousse-cafe.jpg' },
-                     { name: 'B-52', image: 'photos/cocktails/B52-Shooter.jpg' }] },
+    definition: 'Small, visually distinctive drinks made by carefully layering spirits, liqueurs, or syrups ' \
+                'of different densities. Also known as Pousse-Cafés, they showcase the art of layered ' \
+                'presentation.' },
   { name: 'Tiki',
-    definition: 'Single-serving punch-style drinks featuring a base spirit(s), fruit juice and syrups or ' \
-                'liqueurs, often deployed in various combinations.',
-    popular_drinks: [{ name: 'Mai Tai', image: 'photos/cocktails/MaiTai-Spruce.jpg' },
-                     { name: 'Luau Daiquiri', image: 'photos/cocktails/Luau-daiquiri-latitude29.jpg' },
-                     { name: 'Zombie', image: 'photos/cocktails/Zombie-Original.jpg' }] },
+    definition: 'A distinctive American tropical-cocktail tradition associated with pioneers such as Donn ' \
+                'Beach and Trader Vic. Often featuring layered rum flavors, juices, spices, and house-made ' \
+                'syrups, Tiki drinks are defined by their historical style and creative complexity rather ' \
+                'than a single formula.' },
   { name: 'Snapper',
-    definition: 'Made with a base spirit, tomato juice and a variety of garnishes',
-    popular_drinks: [{ name: 'Bloody Mary', image: 'photos/cocktails/bloody-mary.webp' },
-                     { name: 'Red Snapper', image: 'photos/cocktails/red-snapper.jpg' }] },
+    definition: 'Savory, tomato-based cocktails combining spirits with tomato juice, seasoning, acidity, ' \
+                'and often elaborate garnishes. The Bloody Mary and gin-based Red Snapper are familiar ' \
+                'examples.' },
   { name: 'Orphan',
-    definition: 'Does not fit in any cocktail family, or you are just a renegade. Subjected to be moved to a ' \
-                'more appropriate category.',
-    popular_drinks: [{ name: 'Renegade', image: 'photos/cocktails/QuestionCocktail.jpg' }] }
+    definition: 'An internal editorial classification for cocktails that do not yet fit an established ' \
+                'family. Assignments should be reviewed as Kinpour\'s collection develops. This is not a ' \
+                'public cocktail style.' }
 ].freeze
 
 category_seeds.each do |attrs|
   Category.find_or_create_by!(name: attrs[:name]) do |category|
     category.definition = attrs[:definition]
-    category.popular_drinks = attrs[:popular_drinks]
   end
 end
 
