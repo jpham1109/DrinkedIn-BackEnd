@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_07_30_041332) do
+ActiveRecord::Schema[7.0].define(version: 2026_11_16_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -63,13 +63,18 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_30_041332) do
     t.string "description"
     t.string "execution"
     t.text "ingredients", array: true
-    t.bigint "bartender_id"
+    t.bigint "submitted_by_id"
     t.bigint "category_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "likes_count", default: 0, null: false
-    t.index ["bartender_id"], name: "index_cocktails_on_bartender_id"
+    t.bigint "creator_user_id"
+    t.string "creator_name"
+    t.boolean "creator_unknown", default: false, null: false
     t.index ["category_id"], name: "index_cocktails_on_category_id"
+    t.index ["creator_user_id"], name: "index_cocktails_on_creator_user_id"
+    t.index ["submitted_by_id"], name: "index_cocktails_on_submitted_by_id"
+    t.check_constraint "((creator_user_id IS NOT NULL)::integer + (creator_name IS NOT NULL)::integer + creator_unknown::integer) <= 1", name: "creator_attribution_mutually_exclusive"
   end
 
   create_table "favorites", force: :cascade do |t|
@@ -207,7 +212,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_30_041332) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "cocktails", "categories"
-  add_foreign_key "cocktails", "users", column: "bartender_id"
+  add_foreign_key "cocktails", "users", column: "creator_user_id"
+  add_foreign_key "cocktails", "users", column: "submitted_by_id"
   add_foreign_key "favorites", "users"
   add_foreign_key "workplaces", "bars"
   add_foreign_key "workplaces", "users", column: "bartender_id"
