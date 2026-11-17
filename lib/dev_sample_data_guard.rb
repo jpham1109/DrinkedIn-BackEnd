@@ -10,15 +10,22 @@
 #   1. Rails.env must be 'development'.
 #   2. The *resolved* connection config (database/host/port) must match
 #      an explicit allowlist — not assumed from an env var or "intended"
-#      configuration.
+#      configuration. This is the check most directly analogous to the
+#      2026-11-16 incident, where a POSTGRES_DB override looked like it
+#      redirected the connection but silently didn't.
 #   3. The *live* Postgres connection's own reported server port
-#      (inet_server_port(), straight from the wire protocol) must also
-#      match — independent of whatever the config says. This is
-#      specifically the check that would have caught the 2026-11-16
-#      incident: a config/env-var-only check would have been fooled the
-#      same way the original mistake was, since the override *looked*
-#      like it redirected the connection but silently didn't.
+#      (inet_server_port(), straight from the wire protocol), as an
+#      additional cross-check against check 2. This verifies the TCP
+#      port the live connection is actually using — it does not
+#      independently verify server identity (host/database), and on its
+#      own would not have caught the 2026-11-16 incident, which was a
+#      database-name mismatch, not a port mismatch.
 #   4. An explicit CONFIRM_RESET=yes flag.
+#
+# No single check here is "the" fix. The real protection is the
+# combination of all four, together with idempotent/non-destructive
+# seeds (db/seeds.rb), isolated test-database practices, and backups
+# taken before any destructive run.
 #
 # `check!` raises on the first failing check and never returns normally
 # unless all four pass — callers must not run any destructive statement
@@ -81,6 +88,10 @@ class DevSampleDataGuard
     raise GuardError, "Refusing: resolved port is '#{port}', expected #{AUTHORIZED_PORT}."
   end
 
+  # Cross-checks the live connection's reported port against check 2's
+  # resolved config. Verifies the port in use, not host/database identity
+  # — see the class comment above for what this check does and doesn't
+  # establish on its own.
   def check_live_server_endpoint!
     live_port = connection.select_value('SELECT inet_server_port()')
     return if live_port.nil? # Unix-socket connections report no TCP port; the config check above still applies.
