@@ -393,8 +393,18 @@ namespace :dev do
         submitted_by_id: jack.id, category_id: duos_and_trios.id, image_path: 'godfather-cocktail.jpg' }
     ]
 
+    # ai/v1-redesign-plan.md's publication-lifecycle workstream
+    # (2026-11-18) — published so local discovery surfaces aren't empty
+    # after a reset. creator_unknown: true is test-data convenience, not
+    # a verified historical-attribution claim: none of these 41 entries
+    # set a real creator field, and publishing now requires an explicit
+    # attribution decision (Cocktail#creator_attribution_required_while_published)
+    # — this is the semantically honest default for untouched fixture
+    # data, not just a workaround. Production's db/seeds.rb is
+    # unaffected — this merge only ever runs against dev-only sample
+    # data, gated by DevSampleDataGuard above.
     cocktail_data.each do |data|
-      cocktail = Cocktail.create(data.except(:image_path))
+      cocktail = Cocktail.create(data.except(:image_path).merge(published_at: Time.current, creator_unknown: true))
       file_path = Rails.public_path.join('photos', 'cocktails', data[:image_path])
       content_type = MIME::Types.type_for(file_path.to_s).first.content_type
       cocktail.image.attach(io: File.open(file_path), filename: data[:image_path], content_type:)

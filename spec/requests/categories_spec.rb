@@ -27,6 +27,32 @@ RSpec.describe 'Categories', type: :request do
       expect(data['id']).to be_present
       expect(data['definition']).to eq('A tropical tradition.')
     end
+
+    # ai/v1-redesign-plan.md's publication-lifecycle workstream
+    # (2026-11-18) — even an id-only nested list must not reveal a draft
+    # cocktail's existence to a non-editor.
+    it "excludes a draft cocktail's id from its category's nested cocktails for a non-editor" do
+      category = create(:category)
+      published = create(:cocktail, :published, creator_unknown: true, category:)
+      draft = create(:cocktail, category:)
+
+      get '/categories'
+
+      data = json_response.find { |c| c['id'] == category.id }
+      cocktail_ids = data['cocktails'].pluck('id')
+      expect(cocktail_ids).to include(published.id)
+      expect(cocktail_ids).not_to include(draft.id)
+    end
+
+    it "includes a draft cocktail's id in its category's nested cocktails for an authenticated editor" do
+      category = create(:category)
+      draft = create(:cocktail, category:)
+
+      get '/categories', headers: auth_headers_for(create(:user, :editor))
+
+      data = json_response.find { |c| c['id'] == category.id }
+      expect(data['cocktails'].pluck('id')).to include(draft.id)
+    end
   end
 
   def json_response
