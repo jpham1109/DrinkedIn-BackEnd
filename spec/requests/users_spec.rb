@@ -103,6 +103,46 @@ RSpec.describe 'Users', type: :request do
       expect(User.find_by(username: 'has-an-email').email).to eq('person@example.com')
     end
 
+    # Model-level format/uniqueness coverage already exists
+    # (spec/models/user_spec.rb) — these two prove the same validations
+    # actually surface correctly through the signup API boundary, with
+    # the standard validation-error envelope (ApiResponses#render_validation_errors).
+    it 'returns 422 with a validation-error envelope for a malformed email on signup' do
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+      post '/signup',
+           params: { user: { username: 'bad-email-signup', password: 'password123', email: 'not-an-email' } },
+           headers: { 'X-CSRF-Token' => csrf_token }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      email_error = body['errors'].find { |e| e['field'] == 'email' }
+      expect(email_error).to be_present
+      expect(email_error['code']).to eq('validation_failed')
+      expect(email_error['message']).to be_present
+      expect(User.find_by(username: 'bad-email-signup')).to be_nil
+    end
+
+    it 'returns 422 with a validation-error envelope for a duplicate email on signup' do
+      create(:user, email: 'person@example.com')
+
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+      post '/signup',
+           params: { user: { username: 'dup-email-signup', password: 'password123', email: 'Person@Example.com' } },
+           headers: { 'X-CSRF-Token' => csrf_token }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      email_error = body['errors'].find { |e| e['field'] == 'email' }
+      expect(email_error).to be_present
+      expect(email_error['code']).to eq('validation_failed')
+      expect(email_error['message']).to be_present
+      expect(User.find_by(username: 'dup-email-signup')).to be_nil
+    end
+
     it 'ignores an email param on PATCH /me — not yet acceptable through this path' do
       user = create(:user, email: 'original@example.com')
       patch '/me', params: { user: { email: 'changed@example.com' } }, headers: auth_headers_for(user)
