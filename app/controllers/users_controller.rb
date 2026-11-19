@@ -2,7 +2,7 @@
 
 class UsersController < ApplicationController
   wrap_parameters :user,
-                  include: %i[full_name username password workplace bartender instagram_account avatar]
+                  include: %i[full_name username password workplace bartender instagram_account avatar email]
 
   def index
     users = User.includes(:bars, :cocktails, :likes, :followed_users, :following_users, :image_attachment).order(:id)
@@ -24,12 +24,12 @@ class UsersController < ApplicationController
   # session/CSRF auth exclusively since PR 3/4, so there's no remaining
   # consumer of it.
   def signup
-    user = User.new(user_params)
+    user = User.new(signup_params)
     if user.save
       reset_session
       session[:user_id] = user.id
       create_workplace_if_requested(user)
-      render_success({ user: UserSerializer.new(user) }, status: :created)
+      render_success({ user: AccountSerializer.new(user) }, status: :created)
     else
       render_validation_errors(user)
     end
@@ -52,7 +52,7 @@ class UsersController < ApplicationController
 
     if current_user.save
       ProcessImageVariantJob.perform_later(current_user) if user_params[:avatar].present?
-      render json: current_user
+      render json: current_user, serializer: AccountSerializer
     else
       render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
     end
@@ -70,8 +70,21 @@ class UsersController < ApplicationController
   # privileges must never be assignable through public signup or
   # profile updates. Granting editor: true is a separate, documented
   # Rails-console action, never reachable through this params list.
+  #
+  # email is deliberately absent here too — ai/v1-redesign-plan.md's
+  # users.email workstream (2026-11-19): accepted at signup only (see
+  # signup_params below), not through this general profile-update path,
+  # until a verification-aware change-of-email flow exists. A PATCH /me
+  # request that includes an email param has it silently dropped, same
+  # as any other unpermitted field.
   def user_params
     params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar)
+  end
+
+  # Signup-only — see the comment on user_params above for why this
+  # isn't just user_params with email merged in.
+  def signup_params
+    params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar, :email)
   end
 
   # Only ever called from the success branch of #signup (see above) — the

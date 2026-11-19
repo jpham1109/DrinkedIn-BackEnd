@@ -8,8 +8,13 @@
 module ApiResponses
   extend ActiveSupport::Concern
 
-  def render_success(resource, status: :ok, meta: nil)
-    payload = { data: serialized(resource) }
+  # serializer: optional explicit override (e.g. AccountSerializer for
+  # a response that's always and only about the current account —
+  # ai/v1-redesign-plan.md's users.email workstream, 2026-11-19). Omitted
+  # by every other caller, unchanged — behavior stays byte-identical to
+  # before this option existed.
+  def render_success(resource, status: :ok, meta: nil, serializer: nil)
+    payload = { data: serialized(resource, serializer:) }
     payload[:meta] = meta unless meta.nil?
     render json: payload, status: status
   end
@@ -42,11 +47,12 @@ module ApiResponses
 
   private
 
-  def serialized(resource)
+  def serialized(resource, serializer: nil)
     if resource.is_a?(ActiveRecord::Base) ||
        resource.is_a?(ActiveRecord::Relation) ||
        (resource.is_a?(Array) && resource.first.is_a?(ActiveRecord::Base))
-      ActiveModelSerializers::SerializableResource.new(resource).as_json
+      options = serializer ? { serializer: } : {}
+      ActiveModelSerializers::SerializableResource.new(resource, **options).as_json
     else
       resource
     end

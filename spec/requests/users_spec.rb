@@ -90,6 +90,98 @@ RSpec.describe 'Users', type: :request do
     end
   end
 
+  # ai/v1-redesign-plan.md's users.email workstream (2026-11-19).
+  describe 'email' do
+    it 'accepts an optional email on POST /signup and stores it' do
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+      post '/signup',
+           params: { user: { username: 'has-an-email', password: 'password123', email: 'person@example.com' } },
+           headers: { 'X-CSRF-Token' => csrf_token }
+      expect(response).to have_http_status(:created)
+      expect(User.find_by(username: 'has-an-email').email).to eq('person@example.com')
+    end
+
+    it 'ignores an email param on PATCH /me — not yet acceptable through this path' do
+      user = create(:user, email: 'original@example.com')
+      patch '/me', params: { user: { email: 'changed@example.com' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(user.reload.email).to eq('original@example.com')
+    end
+
+    # Public means public, no exceptions — not for the owner viewing
+    # their own listed profile, not for an editor viewing anyone's.
+    describe 'never exposed through public user endpoints' do
+      it 'excludes email from every entry on GET /users, anonymously' do
+        create(:user, email: 'person@example.com')
+        get '/users'
+        data = JSON.parse(response.body)
+        expect(data).to all(satisfy { |entry| !entry.key?('email') })
+      end
+
+      it "excludes email from GET /users/:id on someone else's account" do
+        other = create(:user, email: 'person@example.com')
+        get "/users/#{other.id}", headers: auth_headers_for(create(:user))
+        expect(JSON.parse(response.body)).not_to have_key('email')
+      end
+
+      it "excludes email from GET /users/:id on the viewer's own account" do
+        user = create(:user, email: 'person@example.com')
+        get "/users/#{user.id}", headers: auth_headers_for(user)
+        expect(JSON.parse(response.body)).not_to have_key('email')
+      end
+
+      it 'excludes email from GET /users/:id even for an authenticated editor' do
+        other = create(:user, email: 'person@example.com')
+        get "/users/#{other.id}", headers: auth_headers_for(create(:user, :editor))
+        expect(JSON.parse(response.body)).not_to have_key('email')
+      end
+
+      it 'excludes email from GET /users (index) for an authenticated editor too' do
+        create(:user, email: 'person@example.com')
+        get '/users', headers: auth_headers_for(create(:user, :editor))
+        data = JSON.parse(response.body)
+        expect(data).to all(satisfy { |entry| !entry.key?('email') })
+      end
+    end
+
+    describe 'included in private, self-only responses' do
+      it 'includes email on GET /me' do
+        user = create(:user, email: 'person@example.com')
+        get '/me', headers: auth_headers_for(user)
+        expect(JSON.parse(response.body)['data']['email']).to eq('person@example.com')
+      end
+
+      it "includes the (unchanged) email on PATCH /me's own response" do
+        user = create(:user, email: 'person@example.com')
+        patch '/me', params: { user: { full_name: 'New Name' } }, headers: auth_headers_for(user)
+        expect(JSON.parse(response.body)['email']).to eq('person@example.com')
+      end
+
+      it 'includes email in the POST /signup response' do
+        get '/csrf_token'
+        csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+        post '/signup',
+             params: { user: { username: 'signup-email-check', password: 'password123',
+                                email: 'person@example.com' } },
+             headers: { 'X-CSRF-Token' => csrf_token }
+        expect(JSON.parse(response.body).dig('data', 'user', 'email')).to eq('person@example.com')
+      end
+
+      it 'includes email in the POST /login response' do
+        user = create(:user, email: 'person@example.com')
+        get '/csrf_token'
+        csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+        post '/login', params: { session: { username: user.username, password: 'password123' } },
+                       headers: { 'X-CSRF-Token' => csrf_token }
+        expect(JSON.parse(response.body).dig('data', 'user', 'email')).to eq('person@example.com')
+      end
+    end
+  end
+
   describe 'PATCH /me avatar upload validation' do
     let(:user) { create(:user) }
 
