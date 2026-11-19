@@ -44,11 +44,11 @@ RSpec.describe 'Cocktails', type: :request do
         query_count
       end
 
-      create(:cocktail, submitted_by: submitter, creator_user: create(:user), category:)
+      create(:cocktail, :published, submitted_by: submitter, creator_user: create(:user), category:)
       baseline_count = count_user_queries_for.call
 
       create_list(:user, 8).each do |creator|
-        create(:cocktail, submitted_by: submitter, creator_user: creator, category:)
+        create(:cocktail, :published, submitted_by: submitter, creator_user: creator, category:)
       end
       scaled_up_count = count_user_queries_for.call
 
@@ -63,15 +63,106 @@ RSpec.describe 'Cocktails', type: :request do
     end
   end
 
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18). Explicit scope, not a default_scope (see
+  # Cocktail.published) — applied here at the controller level.
+  describe 'GET /cocktails visibility' do
+    let(:editor) { create(:user, :editor) }
+
+    it 'excludes drafts for an anonymous request' do
+      draft = create(:cocktail)
+      published = create(:cocktail, :published, creator_unknown: true)
+
+      get '/cocktails'
+      ids = JSON.parse(response.body)['data'].pluck('id')
+      expect(ids).to include(published.id)
+      expect(ids).not_to include(draft.id)
+    end
+
+    it 'excludes drafts for an authenticated non-editor' do
+      draft = create(:cocktail)
+      get '/cocktails', headers: auth_headers_for(create(:user))
+      ids = JSON.parse(response.body)['data'].pluck('id')
+      expect(ids).not_to include(draft.id)
+    end
+
+    it 'includes drafts for an authenticated editor' do
+      draft = create(:cocktail)
+      get '/cocktails', headers: auth_headers_for(editor)
+      ids = JSON.parse(response.body)['data'].pluck('id')
+      expect(ids).to include(draft.id)
+    end
+
+    it 'sets Cache-Control: private, no-store when an editor views the index' do
+      get '/cocktails', headers: auth_headers_for(editor)
+      expect(response.headers['Cache-Control']).to eq('private, no-store')
+    end
+
+    it 'does not set a private Cache-Control for an anonymous request' do
+      get '/cocktails'
+      expect(response.headers['Cache-Control']).not_to eq('private, no-store')
+    end
+  end
+
   describe 'GET /cocktails/:id' do
     let(:owner) { create(:user) }
-    let(:cocktail) { create(:cocktail, submitted_by: owner) }
+    let(:cocktail) { create(:cocktail, :published, submitted_by: owner, creator_unknown: true) }
 
     it 'returns 200 with a data object' do
       get "/cocktails/#{cocktail.id}"
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body).to have_key('data')
+    end
+
+    # ai/v1-redesign-plan.md's publication-lifecycle workstream
+    # (2026-11-18) — 404, never 403: a non-editor must not be able to
+    # distinguish "doesn't exist" from "exists but is a draft."
+    it 'returns 404 for a draft requested by an anonymous user' do
+      draft = create(:cocktail)
+      get "/cocktails/#{draft.id}"
+      expect(response).to have_http_status(:not_found)
+      body = JSON.parse(response.body)
+      expect(body['errors'][0]['code']).to eq('not_found')
+    end
+
+    it 'returns 404 for a draft requested by an authenticated non-editor' do
+      draft = create(:cocktail)
+      get "/cocktails/#{draft.id}", headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 200 for a draft requested by an authenticated editor' do
+      draft = create(:cocktail)
+      get "/cocktails/#{draft.id}", headers: auth_headers_for(create(:user, :editor))
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'sets Cache-Control: private, no-store on the 404 denial for a draft' do
+      draft = create(:cocktail)
+      get "/cocktails/#{draft.id}"
+      expect(response.headers['Cache-Control']).to eq('private, no-store')
+    end
+
+    # Round-5 review check: a genuinely nonexistent cocktail and a
+    # concealed draft must produce indistinguishable responses to a
+    # non-editor — same status, same JSON envelope, same caching
+    # header. Before CocktailLookup#find_cocktail rescued
+    # ActiveRecord::RecordNotFound, a nonexistent id raised unhandled
+    # instead of reaching this envelope at all (confirmed live, not
+    # assumed) — a real, visible difference this test now guards
+    # against regressing.
+    it 'is indistinguishable from a nonexistent cocktail for an anonymous requester' do
+      draft = create(:cocktail)
+      get "/cocktails/#{draft.id}"
+      draft_status = response.status
+      draft_body = JSON.parse(response.body)
+      draft_cache_control = response.headers['Cache-Control']
+
+      get '/cocktails/999999999'
+      expect(response.status).to eq(draft_status)
+      expect(JSON.parse(response.body)).to eq(draft_body)
+      expect(response.headers['Cache-Control']).to eq(draft_cache_control)
     end
 
     # Exposed for deterministic client-side ranking (e.g. Home's featured-
@@ -99,12 +190,16 @@ RSpec.describe 'Cocktails', type: :request do
       expect(data['submitted_by']['id']).to eq(owner.id)
       expect(data).to have_key('creator_user_id')
       expect(data).to have_key('creator_name')
-      expect(data['creator_unknown']).to eq(false)
+      # true, not the old default false — this describe block's shared
+      # cocktail is now :published with creator_unknown explicitly set
+      # (publication requires an explicit attribution decision; see
+      # Cocktail#creator_attribution_required_while_published).
+      expect(data['creator_unknown']).to eq(true)
     end
 
     it 'resolves a registered creator to a nested object with name/avatar/location fields' do
       creator = create(:user, full_name: 'Dale DeGroff', location: 'New York, NY')
-      cocktail_with_creator = create(:cocktail, submitted_by: owner, creator_user: creator)
+      cocktail_with_creator = create(:cocktail, :published, submitted_by: owner, creator_user: creator)
 
       get "/cocktails/#{cocktail_with_creator.id}"
       data = JSON.parse(response.body)['data']
@@ -121,7 +216,7 @@ RSpec.describe 'Cocktails', type: :request do
     # whitelist, not reflection over the model's columns.
     it 'exposes only the intended public identity fields on every registered-person object' do
       creator = create(:user)
-      cocktail_with_creator = create(:cocktail, submitted_by: owner, creator_user: creator)
+      cocktail_with_creator = create(:cocktail, :published, submitted_by: owner, creator_user: creator)
 
       get "/cocktails/#{cocktail_with_creator.id}"
       data = JSON.parse(response.body)['data']
@@ -468,6 +563,88 @@ RSpec.describe 'Cocktails', type: :request do
         delete "/cocktails/#{cocktail_with_creator.id}", headers: auth_headers_for(creator)
         expect(response).to have_http_status(:forbidden)
       end
+    end
+  end
+
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18). These are the only two places published_at is ever
+  # written — never accepted as an ordinary update param.
+  describe 'POST /cocktails/:id/publish' do
+    let(:editor) { create(:user, :editor) }
+
+    it 'returns 401 when unauthenticated' do
+      cocktail = create(:cocktail, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/publish"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a non-editor' do
+      cocktail = create(:cocktail, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/publish", headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'publishes a complete, attributed draft and sets published_at' do
+      cocktail = create(:cocktail, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/publish", headers: auth_headers_for(editor)
+      expect(response).to have_http_status(:ok)
+      expect(cocktail.reload.published_at).to be_present
+    end
+
+    it "doesn't bump published_at on a repeat publish call (idempotent)" do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      original_timestamp = cocktail.published_at
+
+      post "/cocktails/#{cocktail.id}/publish", headers: auth_headers_for(editor)
+      expect(cocktail.reload.published_at).to be_within(1.second).of(original_timestamp)
+    end
+
+    it 'rejects publishing without creator attribution with a 422' do
+      cocktail = create(:cocktail)
+      post "/cocktails/#{cocktail.id}/publish", headers: auth_headers_for(editor)
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(cocktail.reload.published_at).to be_nil
+    end
+
+    it 'rejects publishing an incomplete recipe with a 422' do
+      cocktail = create(:cocktail, creator_unknown: true, name: nil)
+      post "/cocktails/#{cocktail.id}/publish", headers: auth_headers_for(editor)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
+  describe 'POST /cocktails/:id/unpublish' do
+    let(:editor) { create(:user, :editor) }
+
+    it 'returns 401 when unauthenticated' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/unpublish"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a non-editor' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/unpublish", headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'unpublishes a published cocktail, clearing published_at' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      post "/cocktails/#{cocktail.id}/unpublish", headers: auth_headers_for(editor)
+      expect(response).to have_http_status(:ok)
+      expect(cocktail.reload.published_at).to be_nil
+    end
+  end
+
+  describe 'published_at is never an ordinary update param' do
+    it 'ignores a published_at value sent on PATCH /cocktails/:id' do
+      editor = create(:user, :editor)
+      cocktail = create(:cocktail)
+
+      patch "/cocktails/#{cocktail.id}", params: { cocktail: { published_at: Time.current.iso8601 } },
+                                         headers: auth_headers_for(editor)
+      expect(response).to have_http_status(:ok)
+      expect(cocktail.reload.published_at).to be_nil
     end
   end
 end

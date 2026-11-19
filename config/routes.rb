@@ -8,8 +8,6 @@ Rails.application.routes.draw do
   resources :categories
   resources :bars
 
-  get 'direct_uploads/create'
-
   get '/users/:id', to: 'users#show'
   get '/users', to: 'users#index'
   post '/login', to: 'sessions#create'
@@ -37,7 +35,23 @@ Rails.application.routes.draw do
   post '/cocktails', to: 'cocktails#create'
   patch '/cocktails/:id', to: 'cocktails#update'
   delete '/cocktails/:id', to: 'cocktails#destroy'
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18) — the only two places published_at is ever written;
+  # never accepted as an ordinary update param (see
+  # CocktailsController#cocktail_params).
+  post '/cocktails/:id/publish', to: 'cocktails#publish'
+  post '/cocktails/:id/unpublish', to: 'cocktails#unpublish'
 
-  # post 'rails/active_storage/direct_uploads', to: 'direct_uploads#create'
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18) — the only HTTP surfaces that can ever produce a link
+  # to an attached image's actual bytes, now that
+  # config.active_storage.draw_routes is false (config/application.rb).
+  # Fixed, named routes only — never a client-controlled transformation
+  # parameter.
+  get '/cocktails/:id/image', to: 'cocktails/images#show', as: :cocktail_image
+  get '/cocktails/:id/image/original', to: 'cocktails/images#original', as: :cocktail_image_original
+  get '/users/:id/avatar', to: 'users/avatars#show', as: :user_avatar
+  get '/users/:id/avatar/original', to: 'users/avatars#original', as: :user_avatar_original
+
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
 end

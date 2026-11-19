@@ -41,6 +41,33 @@ module DrinkedInBackend
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # ai/v1-redesign-plan.md's publication-lifecycle workstream
+    # (2026-11-18). Every Active Storage controller is "publicly
+    # accessible by default... hard to guess, but permanent by design"
+    # (the engine's own doc comment) — there is no way to gate a draft
+    # cocktail's image while these stock routes
+    # (/rails/active_storage/blobs/*, /representations/*) stay mounted,
+    # since they serve any valid signed id regardless of how it was
+    # obtained. Disabling them entirely is what actually closes that —
+    # see app/controllers/concerns/image_delivery.rb and
+    # Cocktails::ImagesController/Users::AvatarsController for the only
+    # replacement routes that exist now.
+    config.active_storage.draw_routes = false
+
+    # Found by a real failing test, not a source read: ActiveStorage::Blob#url
+    # forces disposition: :attachment (silently overriding whatever
+    # `disposition:` is passed in) unless the blob's content type is
+    # explicitly allowlisted here — `content_types_allowed_inline`
+    # defaults to `[]`, so every image would have downloaded instead of
+    # displaying inline through the S3/redirect delivery branch
+    # (ImageDelivery), even though the Disk branch's `send_data` call
+    # was never affected (it doesn't go through Blob#url's
+    # disposition-forcing logic at all). Must list every content type
+    # ImageAttachable::ALLOWED_CONTENT_TYPES accepts on upload, plus
+    # 'image/webp' for the processed variant's own output format
+    # (already included — uploads already allow webp).
+    config.active_storage.content_types_allowed_inline = %w[image/jpeg image/png image/webp]
+
     # Session/cookie middleware, added back manually per the comment above.
     # Required for the web session-cookie auth path added in the auth
     # migration (see ai/auth-migration-plan.md) — bearer JWT remains the

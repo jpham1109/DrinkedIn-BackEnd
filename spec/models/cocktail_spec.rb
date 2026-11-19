@@ -122,4 +122,89 @@ RSpec.describe Cocktail, type: :model do
       expect(creator.destroy).to eq(creator)
     end
   end
+
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18). These validations fire on *every* save that leaves
+  # published_at present, not only the initial draft→published
+  # transition — tested directly below.
+  describe 'publication readiness' do
+    it 'is valid as a draft with no creator attribution and no recipe text at all' do
+      # category stays a real, saved association — belongs_to :category
+      # requires it unconditionally (a pre-existing constraint, unrelated
+      # to and not relaxed by this workstream); everything else may be
+      # missing while a draft.
+      cocktail = build(:cocktail, name: nil, execution: nil, ingredients: nil, category: create(:category),
+                                  creator_user_id: nil, creator_name: nil, creator_unknown: false)
+      expect(cocktail).to be_valid
+    end
+
+    it 'is invalid to publish without any creator attribution' do
+      cocktail = build(:cocktail, published_at: Time.current,
+                                  creator_user_id: nil, creator_name: nil, creator_unknown: false)
+      expect(cocktail).not_to be_valid
+      expect(cocktail.errors[:base]).to be_present
+    end
+
+    it 'is invalid to publish without a name' do
+      cocktail = build(:cocktail, published_at: Time.current, creator_unknown: true, name: nil)
+      expect(cocktail).not_to be_valid
+      expect(cocktail.errors[:name]).to be_present
+    end
+
+    it 'is invalid to publish without execution, ingredients, or a category' do
+      cocktail = build(:cocktail, published_at: Time.current, creator_unknown: true,
+                                  execution: nil, ingredients: nil, category: nil)
+      expect(cocktail).not_to be_valid
+      expect(cocktail.errors[:execution]).to be_present
+      expect(cocktail.errors[:ingredients]).to be_present
+      expect(cocktail.errors[:category_id]).to be_present
+    end
+
+    it 'is valid to publish with attribution and a complete recipe' do
+      # category: create(:category) — a plain build(:cocktail) builds
+      # (doesn't persist) its associated category too, leaving
+      # category_id nil until saved; a real, saved category is needed
+      # here since this is specifically testing category_id presence.
+      cocktail = build(:cocktail, published_at: Time.current, creator_unknown: true, category: create(:category))
+      expect(cocktail).to be_valid
+    end
+
+    it 'rejects clearing attribution on an already-published cocktail without unpublishing' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      cocktail.creator_unknown = false
+
+      expect(cocktail).not_to be_valid
+      expect(cocktail.errors[:base]).to be_present
+    end
+
+    it 'rejects clearing a required recipe field on an already-published cocktail without unpublishing' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      cocktail.name = nil
+
+      expect(cocktail).not_to be_valid
+      expect(cocktail.errors[:name]).to be_present
+    end
+
+    it 'allows clearing attribution and recipe fields in the same save that unpublishes' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+
+      expect(cocktail.update(published_at: nil, creator_unknown: false, name: nil)).to be(true)
+    end
+
+    it 'allows moving between two valid attribution states while remaining published, in one save' do
+      creator = create(:user)
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+
+      expect(cocktail.update(creator_unknown: false, creator_user_id: creator.id)).to be(true)
+      expect(cocktail.reload.creator_user_id).to eq(creator.id)
+    end
+
+    it 'rejects re-publishing without attribution after it was cleared while unpublished' do
+      cocktail = create(:cocktail, :published, creator_unknown: true)
+      cocktail.update!(published_at: nil, creator_unknown: false)
+
+      expect(cocktail.update(published_at: Time.current)).to be(false)
+      expect(cocktail.errors[:base]).to be_present
+    end
+  end
 end

@@ -26,6 +26,70 @@ RSpec.describe 'Users', type: :request do
     end
   end
 
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18) — a user's id-only nested cocktails/likes must not
+  # reveal a draft cocktail's existence to a non-editor either.
+  describe 'GET /users/:id draft visibility in nested associations' do
+    it "excludes a draft cocktail's id from the submitter's nested cocktails for a non-editor" do
+      submitter = create(:user)
+      draft = create(:cocktail, submitted_by: submitter)
+
+      get "/users/#{submitter.id}"
+      ids = JSON.parse(response.body)['cocktails'].pluck('id')
+      expect(ids).not_to include(draft.id)
+    end
+
+    it "includes a draft cocktail's id in the submitter's nested cocktails for an authenticated editor" do
+      submitter = create(:user)
+      draft = create(:cocktail, submitted_by: submitter)
+
+      get "/users/#{submitter.id}", headers: auth_headers_for(create(:user, :editor))
+      ids = JSON.parse(response.body)['cocktails'].pluck('id')
+      expect(ids).to include(draft.id)
+    end
+
+    it "excludes a like on a draft cocktail from the liker's nested likes for a non-editor" do
+      liker = create(:user)
+      draft = create(:cocktail)
+      draft_like = create(:like, liker:, liked_cocktail: draft)
+
+      get "/users/#{liker.id}"
+      ids = JSON.parse(response.body)['likes'].pluck('id')
+      expect(ids).not_to include(draft_like.id)
+    end
+
+    it "includes a like on a draft cocktail in the liker's nested likes for an authenticated editor" do
+      liker = create(:user)
+      draft = create(:cocktail)
+      draft_like = create(:like, liker:, liked_cocktail: draft)
+
+      get "/users/#{liker.id}", headers: auth_headers_for(create(:user, :editor))
+      ids = JSON.parse(response.body)['likes'].pluck('id')
+      expect(ids).to include(draft_like.id)
+    end
+  end
+
+  # Proves the respond_to?(:current_user) defensive guard in
+  # UserSerializer doesn't raise when the serializer is manually
+  # instantiated with no scope at all (SessionsController#create,
+  # UsersController#signup) — it fails closed instead, treating the
+  # view as non-editor regardless of the actual user's editor status.
+  describe 'nested cocktails/likes on manually-scoped UserSerializer instantiations' do
+    it "does not raise, and shows no drafts, in the signup response's nested cocktails" do
+      editor = create(:user, :editor)
+      draft = create(:cocktail, submitted_by: editor)
+
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+      post '/login', params: { session: { username: editor.username, password: 'password123' } },
+                     headers: { 'X-CSRF-Token' => csrf_token }
+
+      expect(response).to have_http_status(:ok)
+      ids = JSON.parse(response.body).dig('data', 'user', 'cocktails').pluck('id')
+      expect(ids).not_to include(draft.id)
+    end
+  end
+
   describe 'PATCH /me avatar upload validation' do
     let(:user) { create(:user) }
 

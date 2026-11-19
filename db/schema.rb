@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_11_18_165935) do
+ActiveRecord::Schema[7.0].define(version: 2026_11_18_171549) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -72,6 +72,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_11_18_165935) do
     t.bigint "creator_user_id"
     t.string "creator_name"
     t.boolean "creator_unknown", default: false, null: false
+    t.datetime "published_at"
     t.index ["category_id"], name: "index_cocktails_on_category_id"
     t.index ["creator_user_id"], name: "index_cocktails_on_creator_user_id"
     t.index ["submitted_by_id"], name: "index_cocktails_on_submitted_by_id"

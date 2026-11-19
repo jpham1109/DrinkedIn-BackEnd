@@ -49,4 +49,16 @@ class User < ApplicationRecord
   # concern for image attachment
   include ImageAttachable
   has_one_attached :image
+
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18) — points at the gated delivery route
+  # (UsersController#avatar). No draft concept applies to users; that
+  # route's authorization is always-allow, same as before this change —
+  # this is a working replacement for the route it's losing, not new
+  # restriction.
+  def processed_image_url
+    return unless image.attached?
+
+    Rails.application.routes.url_helpers.user_avatar_url(id)
+  end
 end

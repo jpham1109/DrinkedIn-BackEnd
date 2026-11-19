@@ -42,14 +42,19 @@ module ImageAttachable
     end
   end
 
-  def processed_image_url
-    return unless image.attached?
-
-    Rails.application.routes.url_helpers.url_for(image_variant(image))
-  rescue StandardError => e
-    Rails.logger.error "Image processing failed for #{self.class.name} ##{id}: #{e.message}"
-    nil
-  end
+  # ai/v1-redesign-plan.md's publication-lifecycle workstream
+  # (2026-11-18) — there used to be a single shared processed_image_url
+  # here (`url_for(image_variant(image))`, a stock Active Storage
+  # engine-route URL). That route is now disabled
+  # (config.active_storage.draw_routes = false,
+  # config/application.rb) — it was permanent-by-design and
+  # unauthenticated for anyone who ever obtained the link, which is
+  # exactly what the new gated delivery routes exist to close. Each
+  # including model now defines its own processed_image_url pointing at
+  # its own gated route (Cocktail#processed_image_url,
+  # User#processed_image_url) instead of a shared implementation here,
+  # since each needs a different named route and a different
+  # authorization rule on the delivery side.
 
   private
 
