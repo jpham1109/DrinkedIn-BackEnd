@@ -43,8 +43,14 @@ namespace :dev do
     # here.
     Rails.application.load_seed
 
+    # editor: true here only — a dev-only stand-in for the founder's own
+    # account, so local editor-gated testing (catalog
+    # create/update/destroy/publish/unpublish) doesn't require a manual
+    # console step every reset. Never set this way outside this
+    # dev-only task; the real grant is a documented, one-time Rails
+    # console action (ai/v1-redesign-plan.md).
     jamie = User.create(full_name: 'Jamie Pham', username: 'ninjacat', password: '123', location: 'Brooklyn, NY',
-                        bartender: true)
+                        bartender: true, editor: true)
     toggie = User.create(full_name: 'Toggie Pham', username: 'puglife', password: '123', location: 'Heaven, SK',
                          bartender: true)
     jack = User.create(full_name: 'Jack Rose', username: 'jackrose', password: '123', location: 'Queens, NY',

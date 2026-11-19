@@ -139,7 +139,7 @@ RSpec.describe 'Cocktails', type: :request do
   end
 
   describe 'POST /cocktails' do
-    let(:user) { create(:user) }
+    let(:user) { create(:user, :editor) }
     let(:category) { create(:category) }
     let(:valid_params) do
       { cocktail: { name: 'Old Fashioned', description: 'A classic', execution: 'Stir well',
@@ -156,7 +156,21 @@ RSpec.describe 'Cocktails', type: :request do
       end
     end
 
-    context 'when authenticated' do
+    # ai/v1-redesign-plan.md's editorial-authorization workstream
+    # (2026-11-18): Kinpour's catalog is editor-managed, not
+    # self-service — an ordinary authenticated user (including a
+    # bartender) has no path to create a cocktail at all.
+    context 'when authenticated but not an editor' do
+      it 'returns 403 with editorial_authorization_required error' do
+        post '/cocktails', params: valid_params, headers: auth_headers_for(create(:user))
+        expect(response).to have_http_status(:forbidden)
+        body = JSON.parse(response.body)
+        expect(body['errors'][0]['code']).to eq('editorial_authorization_required')
+        expect(body['errors'][0]['message']).to be_present
+      end
+    end
+
+    context 'when authenticated as an editor' do
       it 'creates a cocktail and returns 201 with data' do
         post '/cocktails', params: valid_params, headers: auth_headers_for(user)
         expect(response).to have_http_status(:created)
@@ -168,6 +182,20 @@ RSpec.describe 'Cocktails', type: :request do
       it 'ignores a spoofed user_id param' do
         other_user = create(:user)
         post '/cocktails', params: valid_params.deep_merge(cocktail: { user_id: other_user.id }),
+                           headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(Cocktail.last.submitted_by_id).to eq(user.id)
+      end
+
+      # ai/v1-redesign-plan.md's editorial-authorization workstream
+      # (2026-11-18): submitted_by_id must always be the authenticated
+      # editor who made the request, never a client-supplied value —
+      # an editor entering another bartender's recipe doesn't transfer
+      # the record's ownership to that bartender, it stays owned by the
+      # editor who actually submitted it.
+      it 'ignores a spoofed submitted_by_id param — the submitter is always the authenticated editor' do
+        other_user = create(:user)
+        post '/cocktails', params: valid_params.deep_merge(cocktail: { submitted_by_id: other_user.id }),
                            headers: auth_headers_for(user)
         expect(response).to have_http_status(:created)
         expect(Cocktail.last.submitted_by_id).to eq(user.id)
@@ -199,9 +227,10 @@ RSpec.describe 'Cocktails', type: :request do
   end
 
   describe 'PATCH /cocktails/:id' do
-    let(:owner) { create(:user) }
+    let(:original_submitter) { create(:user) }
+    let(:editor) { create(:user, :editor) }
     let(:other_user) { create(:user) }
-    let(:cocktail) { create(:cocktail, submitted_by: owner) }
+    let(:cocktail) { create(:cocktail, submitted_by: original_submitter) }
 
     context 'when unauthenticated' do
       it 'returns 401 with authentication_required error' do
@@ -212,34 +241,70 @@ RSpec.describe 'Cocktails', type: :request do
       end
     end
 
-    context 'when authenticated as the owner' do
+    context 'when authenticated as an editor' do
       it 'updates the cocktail and returns 200 with data' do
         patch "/cocktails/#{cocktail.id}", params: { cocktail: { name: 'Updated Name' } },
-                                           headers: auth_headers_for(owner)
+                                           headers: auth_headers_for(editor)
         expect(response).to have_http_status(:ok)
         body = JSON.parse(response.body)
         expect(body).to have_key('data')
       end
+
+      # ai/v1-redesign-plan.md's editorial-authorization workstream
+      # (2026-11-18): editing a cocktail never transfers it — the
+      # original submitter stays the original submitter even when an
+      # editor (who may not be that submitter at all) makes the edit.
+      it 'ignores a submitted_by_id param — the original submitter never changes' do
+        patch "/cocktails/#{cocktail.id}", params: { cocktail: { submitted_by_id: editor.id } },
+                                           headers: auth_headers_for(editor)
+        expect(response).to have_http_status(:ok)
+        expect(cocktail.reload.submitted_by_id).to eq(original_submitter.id)
+      end
+
+      it 'independently updates creator attribution while leaving submitted_by_id untouched' do
+        creator = create(:user)
+        patch "/cocktails/#{cocktail.id}",
+              params: { cocktail: { creator_user_id: creator.id, submitted_by_id: editor.id } },
+              headers: auth_headers_for(editor)
+        expect(response).to have_http_status(:ok)
+        cocktail.reload
+        expect(cocktail.creator_user_id).to eq(creator.id)
+        expect(cocktail.submitted_by_id).to eq(original_submitter.id)
+      end
     end
 
-    context 'when authenticated as a non-owner' do
-      it 'returns 403 with forbidden error' do
+    # The original submitter is no longer special — ai/v1-redesign-plan.md's
+    # editorial-authorization workstream (2026-11-18) replaces the old
+    # owner-based model entirely. No non-editor, including the cocktail's
+    # own original submitter, may edit it.
+    context 'when authenticated as the original submitter, who is not an editor' do
+      it 'returns 403 with editorial_authorization_required error' do
+        patch "/cocktails/#{cocktail.id}", params: { cocktail: { name: 'Hacked' } },
+                                           headers: auth_headers_for(original_submitter)
+        expect(response).to have_http_status(:forbidden)
+        body = JSON.parse(response.body)
+        expect(body['errors'][0]['code']).to eq('editorial_authorization_required')
+        expect(body['errors'][0]['message']).to be_present
+      end
+    end
+
+    context 'when authenticated as an unrelated non-editor' do
+      it 'returns 403 with editorial_authorization_required error' do
         patch "/cocktails/#{cocktail.id}", params: { cocktail: { name: 'Hacked' } },
                                            headers: auth_headers_for(other_user)
         expect(response).to have_http_status(:forbidden)
         body = JSON.parse(response.body)
-        expect(body['errors'][0]['code']).to eq('forbidden')
-        expect(body['errors'][0]['message']).to be_present
+        expect(body['errors'][0]['code']).to eq('editorial_authorization_required')
       end
     end
 
     # Direct proof that creator attribution (B2) grants no authorization:
     # being credited as a cocktail's *creator* must not let that user
-    # edit a record someone else submitted/owns.
-    context 'when authenticated as the credited creator but not the submitter' do
-      it 'returns 403 with forbidden error' do
+    # edit the record unless they are also separately an editor.
+    context 'when authenticated as the credited creator but not an editor' do
+      it 'returns 403 with editorial_authorization_required error' do
         creator = create(:user)
-        cocktail_with_creator = create(:cocktail, submitted_by: owner, creator_user: creator)
+        cocktail_with_creator = create(:cocktail, submitted_by: original_submitter, creator_user: creator)
 
         patch "/cocktails/#{cocktail_with_creator.id}", params: { cocktail: { name: 'Hacked' } },
                                                         headers: auth_headers_for(creator)
@@ -249,7 +314,7 @@ RSpec.describe 'Cocktails', type: :request do
   end
 
   describe 'photo upload validation' do
-    let(:user) { create(:user) }
+    let(:user) { create(:user, :editor) }
     let(:category) { create(:category) }
     let(:base_params) do
       { cocktail: { name: 'Sunset Spritz', description: 'Refreshing', execution: 'Shake',
@@ -311,7 +376,7 @@ RSpec.describe 'Cocktails', type: :request do
   end
 
   describe 'background variant processing' do
-    let(:user) { create(:user) }
+    let(:user) { create(:user, :editor) }
     let(:category) { create(:category) }
     let(:base_params) do
       { cocktail: { name: 'Paloma', description: 'Bright and citrusy', execution: 'Build over ice',
@@ -355,9 +420,10 @@ RSpec.describe 'Cocktails', type: :request do
   end
 
   describe 'DELETE /cocktails/:id' do
-    let(:owner) { create(:user) }
+    let(:original_submitter) { create(:user) }
+    let(:editor) { create(:user, :editor) }
     let(:other_user) { create(:user) }
-    let(:cocktail) { create(:cocktail, submitted_by: owner) }
+    let(:cocktail) { create(:cocktail, submitted_by: original_submitter) }
 
     context 'when unauthenticated' do
       it 'returns 401 with authentication_required error' do
@@ -368,27 +434,36 @@ RSpec.describe 'Cocktails', type: :request do
       end
     end
 
-    context 'when authenticated as the owner' do
+    context 'when authenticated as an editor' do
       it 'destroys the cocktail with no content' do
-        delete "/cocktails/#{cocktail.id}", headers: auth_headers_for(owner)
+        delete "/cocktails/#{cocktail.id}", headers: auth_headers_for(editor)
         expect(response).to have_http_status(:no_content)
         expect(response.body).to be_empty
       end
     end
 
-    context 'when authenticated as a non-owner' do
-      it 'returns 403 with forbidden error' do
-        delete "/cocktails/#{cocktail.id}", headers: auth_headers_for(other_user)
+    context 'when authenticated as the original submitter, who is not an editor' do
+      it 'returns 403 with editorial_authorization_required error' do
+        delete "/cocktails/#{cocktail.id}", headers: auth_headers_for(original_submitter)
         expect(response).to have_http_status(:forbidden)
         body = JSON.parse(response.body)
-        expect(body['errors'][0]['code']).to eq('forbidden')
+        expect(body['errors'][0]['code']).to eq('editorial_authorization_required')
       end
     end
 
-    context 'when authenticated as the credited creator but not the submitter' do
-      it 'returns 403 with forbidden error' do
+    context 'when authenticated as an unrelated non-editor' do
+      it 'returns 403 with editorial_authorization_required error' do
+        delete "/cocktails/#{cocktail.id}", headers: auth_headers_for(other_user)
+        expect(response).to have_http_status(:forbidden)
+        body = JSON.parse(response.body)
+        expect(body['errors'][0]['code']).to eq('editorial_authorization_required')
+      end
+    end
+
+    context 'when authenticated as the credited creator but not an editor' do
+      it 'returns 403 with editorial_authorization_required error' do
         creator = create(:user)
-        cocktail_with_creator = create(:cocktail, submitted_by: owner, creator_user: creator)
+        cocktail_with_creator = create(:cocktail, submitted_by: original_submitter, creator_user: creator)
 
         delete "/cocktails/#{cocktail_with_creator.id}", headers: auth_headers_for(creator)
         expect(response).to have_http_status(:forbidden)

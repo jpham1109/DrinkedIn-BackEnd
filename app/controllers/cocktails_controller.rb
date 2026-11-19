@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
 class CocktailsController < ApplicationController
-  before_action :require_login, only: %i[create update destroy]
+  # ai/v1-redesign-plan.md's editorial-authorization workstream
+  # (2026-11-18) — replaces the old owner-based require_login +
+  # require_cocktail_owner pair. Kinpour's catalog is editor-managed,
+  # not self-service: there is no remaining case where an ordinary
+  # submitter may create, edit, or delete a cocktail record.
+  before_action :require_editor, only: %i[create update destroy]
   before_action :find_cocktail, only: %i[show update destroy]
-  before_action :require_cocktail_owner, only: %i[update destroy]
   before_action :convert_to_array, only: %i[create update]
   wrap_parameters :cocktail, include: %i[name description execution ingredients category image]
 
@@ -65,6 +69,9 @@ class CocktailsController < ApplicationController
 
   private
 
+  # submitted_by_id is deliberately absent — always server-derived from
+  # current_user (never client-supplied, never mutable after creation,
+  # see #create above).
   def cocktail_params
     params.require(:cocktail).permit(
       :id, :name, :description, :execution, :ingredients, :category_id, :photo,
@@ -82,15 +89,5 @@ class CocktailsController < ApplicationController
 
   def find_cocktail
     @cocktail = Cocktail.find(params[:id])
-  end
-
-  def require_cocktail_owner
-    return if @cocktail.submitted_by_id == current_user.id
-
-    render_error(
-      code: 'forbidden',
-      message: 'You are not authorized to modify this cocktail.',
-      status: :forbidden
-    )
   end
 end

@@ -65,6 +65,11 @@ class UsersController < ApplicationController
 
   private
 
+  # editor is deliberately absent — ai/v1-redesign-plan.md's
+  # editorial-authorization workstream (2026-11-18): editorial
+  # privileges must never be assignable through public signup or
+  # profile updates. Granting editor: true is a separate, documented
+  # Rails-console action, never reachable through this params list.
   def user_params
     params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar)
   end
