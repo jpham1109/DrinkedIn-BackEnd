@@ -46,6 +46,19 @@ class User < ApplicationRecord
   has_secure_password
   validates :username, uniqueness: { case_sensitive: false }, presence: true
 
+  # ai/v1-redesign-plan.md's users.email workstream (2026-11-19).
+  # Optional — many existing accounts have none. Runs before the
+  # uniqueness/format checks below so a whitespace-only submission can
+  # never collide with another whitespace-only one under the DB's
+  # lower(email) index (same reasoning as
+  # Cocktail#normalize_creator_name). Deliberately does not downcase —
+  # preserves as-typed casing, matching username's and Category#name's
+  # existing convention of comparing/indexing case-insensitively without
+  # rewriting storage.
+  before_validation :normalize_email
+  validates :email, uniqueness: { case_sensitive: false }, allow_nil: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+
   # concern for image attachment
   include ImageAttachable
   has_one_attached :image
@@ -60,5 +73,11 @@ class User < ApplicationRecord
     return unless image.attached?
 
     Rails.application.routes.url_helpers.user_avatar_url(id)
+  end
+
+  private
+
+  def normalize_email
+    self.email = email.presence&.strip
   end
 end

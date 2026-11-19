@@ -3,8 +3,10 @@
 class SessionsController < ApplicationController
   before_action :require_login, only: :show
 
+  # AccountSerializer (not the public UserSerializer) — this is always
+  # and only the authenticated account's own view of itself.
   def show
-    render_success(current_user)
+    render_success(current_user, serializer: AccountSerializer)
   end
 
   # PR 1's skip_forgery_protection only: :create is removed here (PR 2) —
@@ -23,7 +25,7 @@ class SessionsController < ApplicationController
     if user&.authenticate(session_params[:password])
       reset_session
       session[:user_id] = user.id
-      render_success({ user: UserSerializer.new(user) }, status: :ok)
+      render_success({ user: AccountSerializer.new(user) }, status: :ok)
     else
       # Unknown username and wrong password return the same error —
       # deliberately not distinguished, to avoid formalizing username
