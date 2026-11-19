@@ -1,6 +1,31 @@
 require 'rails_helper'
 
 RSpec.describe 'Users', type: :request do
+  # ai/v1-redesign-plan.md's editorial-authorization workstream
+  # (2026-11-18): editor must never be settable through the public
+  # signup/profile-update surface — user_params doesn't permit it, so a
+  # spoofed value is silently dropped, same as any other unpermitted
+  # param.
+  describe 'editor mass-assignment protection' do
+    it 'ignores an editor param on PATCH /me' do
+      user = create(:user)
+      patch '/me', params: { user: { editor: true } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(user.reload.editor).to be(false)
+    end
+
+    it 'ignores an editor param on POST /signup' do
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+      post '/signup',
+           params: { user: { username: 'newbie', password: 'password123', editor: true } },
+           headers: { 'X-CSRF-Token' => csrf_token }
+      expect(response).to have_http_status(:created)
+      expect(User.find_by(username: 'newbie').editor).to be(false)
+    end
+  end
+
   describe 'PATCH /me avatar upload validation' do
     let(:user) { create(:user) }
 

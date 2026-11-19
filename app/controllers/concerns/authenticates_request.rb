@@ -41,6 +41,26 @@ module AuthenticatesRequest
     )
   end
 
+  # ai/v1-redesign-plan.md's editorial-authorization workstream
+  # (2026-11-18) — Kinpour launches as a curated editorial publication,
+  # not an open submission platform (docs/content-publication-policy.md):
+  # only accounts with editor: true may create/manage/publish the public
+  # catalog. Independent of bartender status, authorship, and
+  # submission. Handles both failure cases in one before_action, same
+  # pattern as require_login: unauthenticated gets the existing
+  # authentication_required message rather than a confusing "not
+  # authorized" for someone who was never logged in to begin with.
+  def require_editor
+    return require_login unless logged_in?
+    return if current_user.editor?
+
+    render_error(
+      code: 'editorial_authorization_required',
+      message: 'You are not authorized to manage the catalog.',
+      status: :forbidden
+    )
+  end
+
   # secret key saved away in a credentials file
   def jwt_key
     Rails.application.credentials.jwt_key

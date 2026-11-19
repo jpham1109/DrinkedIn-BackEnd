@@ -108,7 +108,12 @@ RSpec.describe 'Auth migration — PR 1 backend foundation', type: :request do
   end
 
   describe 'CSRF enforcement on cookie/session-authenticated mutations' do
-    let(:owner) { create(:user) }
+    # :editor — ai/v1-redesign-plan.md's editorial-authorization
+    # workstream (2026-11-18) made PATCH /cocktails/:id editor-gated;
+    # this describe block is about CSRF plumbing, not authorization, so
+    # the acting user just needs to be allowed to perform the mutation
+    # at all.
+    let(:owner) { create(:user, :editor) }
     let(:cocktail) { create(:cocktail, submitted_by: owner) }
 
     it 'rejects a session-authenticated mutation with no CSRF token, with csrf_invalid' do
