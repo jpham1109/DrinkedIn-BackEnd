@@ -47,17 +47,27 @@ class User < ApplicationRecord
   validates :username, uniqueness: { case_sensitive: false }, presence: true
 
   # ai/v1-redesign-plan.md's users.email workstream (2026-11-19).
-  # Optional — many existing accounts have none. Runs before the
-  # uniqueness/format checks below so a whitespace-only submission can
-  # never collide with another whitespace-only one under the DB's
-  # lower(email) index (same reasoning as
-  # Cocktail#normalize_creator_name). Deliberately does not downcase —
-  # preserves as-typed casing, matching username's and Category#name's
-  # existing convention of comparing/indexing case-insensitively without
-  # rewriting storage.
+  # Runs before the uniqueness/format/presence checks below so a
+  # whitespace-only submission can never collide with another
+  # whitespace-only one under the DB's lower(email) index (same
+  # reasoning as Cocktail#normalize_creator_name). Deliberately does not
+  # downcase — preserves as-typed casing, matching username's and
+  # Category#name's existing convention of comparing/indexing
+  # case-insensitively without rewriting storage.
   before_validation :normalize_email
   validates :email, uniqueness: { case_sensitive: false }, allow_nil: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+  # ai/v1-redesign-plan.md's email-signup-completion workstream
+  # (2026-11-22). Standard Rails `on: :create` — applies uniformly to
+  # every path that ever creates a User (UsersController#signup,
+  # lib/tasks/dev_sample_data.rake, the FactoryBot factory), not a
+  # custom validation context scoped to signup alone. The column itself
+  # stays nullable: existing accounts created before this requirement
+  # keep whatever email they already have (including none), and nothing
+  # here blocks *updating* one of those legacy records — presence is
+  # only checked at creation, never re-enforced on every subsequent
+  # save.
+  validates :email, presence: true, on: :create
 
   # concern for image attachment
   include ImageAttachable

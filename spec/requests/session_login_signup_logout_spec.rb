@@ -136,7 +136,10 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
   end
 
   describe 'POST /signup' do
-    let(:signup_params) { { user: { username: 'brandnewuser', full_name: 'New User', password: 'password123' } } }
+    let(:signup_params) do
+      { user: { username: 'brandnewuser', full_name: 'New User', password: 'password123',
+                email: 'brandnewuser@example.com' } }
+    end
 
     it 'establishes a real session and returns 201 with the full envelope shape, with no jwt field (removed in PR 5)' do
       csrf_token = fetch_csrf_token
@@ -178,7 +181,8 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
 
       fresh_csrf_token = fetch_csrf_token
       post '/signup',
-           params: { user: { username: 'anotherbrandnewuser', full_name: 'New User', password: 'password123' } },
+           params: { user: { username: 'anotherbrandnewuser', full_name: 'New User', password: 'password123',
+                             email: 'anotherbrandnewuser@example.com' } },
            headers: { 'X-CSRF-Token' => fresh_csrf_token }
       expect(response).to have_http_status(:created)
     end
@@ -198,7 +202,8 @@ RSpec.describe 'Auth migration — PR 2 session cutover', type: :request do
       csrf_token = fetch_csrf_token
 
       post '/signup',
-           params: { user: { username: 'taken', full_name: 'Dup', password: 'password123' }, work_at: 'Orphan Bar' },
+           params: { user: { username: 'taken', full_name: 'Dup', password: 'password123', email: 'dup@example.com' },
+                     work_at: 'Orphan Bar' },
            headers: { 'X-CSRF-Token' => csrf_token }
 
       expect(response).to have_http_status(:unprocessable_entity)
