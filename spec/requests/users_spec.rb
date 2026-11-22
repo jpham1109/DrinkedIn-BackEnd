@@ -19,7 +19,7 @@ RSpec.describe 'Users', type: :request do
       csrf_token = JSON.parse(response.body)['data']['csrf_token']
 
       post '/signup',
-           params: { user: { username: 'newbie', password: 'password123', editor: true } },
+           params: { user: { username: 'newbie', password: 'password123', email: 'newbie@example.com', editor: true } },
            headers: { 'X-CSRF-Token' => csrf_token }
       expect(response).to have_http_status(:created)
       expect(User.find_by(username: 'newbie').editor).to be(false)
@@ -90,9 +90,12 @@ RSpec.describe 'Users', type: :request do
     end
   end
 
-  # ai/v1-redesign-plan.md's users.email workstream (2026-11-19).
+  # ai/v1-redesign-plan.md's users.email workstream (2026-11-19),
+  # updated by the email-signup-completion workstream (2026-11-22):
+  # email is now required for new signups (validates :email,
+  # presence: true, on: :create, app/models/user.rb).
   describe 'email' do
-    it 'accepts an optional email on POST /signup and stores it' do
+    it 'accepts a valid email on POST /signup and stores it' do
       get '/csrf_token'
       csrf_token = JSON.parse(response.body)['data']['csrf_token']
 
@@ -101,6 +104,23 @@ RSpec.describe 'Users', type: :request do
            headers: { 'X-CSRF-Token' => csrf_token }
       expect(response).to have_http_status(:created)
       expect(User.find_by(username: 'has-an-email').email).to eq('person@example.com')
+    end
+
+    it 'returns 422 with a validation-error envelope for a missing email on signup' do
+      get '/csrf_token'
+      csrf_token = JSON.parse(response.body)['data']['csrf_token']
+
+      post '/signup',
+           params: { user: { username: 'no-email-signup', password: 'password123' } },
+           headers: { 'X-CSRF-Token' => csrf_token }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      email_error = body['errors'].find { |e| e['field'] == 'email' }
+      expect(email_error).to be_present
+      expect(email_error['code']).to eq('validation_failed')
+      expect(email_error['message']).to be_present
+      expect(User.find_by(username: 'no-email-signup')).to be_nil
     end
 
     # Model-level format/uniqueness coverage already exists

@@ -49,16 +49,21 @@ namespace :dev do
     # console step every reset. Never set this way outside this
     # dev-only task; the real grant is a documented, one-time Rails
     # console action (ai/v1-redesign-plan.md).
+    # ai/v1-redesign-plan.md's email-signup-completion workstream
+    # (2026-11-22) — User now requires email on: :create
+    # (app/models/user.rb); these 5 get real-shaped, distinct, fictional
+    # example.com addresses (RFC 2606 — never deliverable) rather than
+    # being special-cased around the new requirement.
     jamie = User.create(full_name: 'Jamie Pham', username: 'ninjacat', password: '123', location: 'Brooklyn, NY',
-                        bartender: true, editor: true)
+                        bartender: true, editor: true, email: 'jamie.pham@example.com')
     toggie = User.create(full_name: 'Toggie Pham', username: 'puglife', password: '123', location: 'Heaven, SK',
-                         bartender: true)
+                         bartender: true, email: 'toggie.pham@example.com')
     jack = User.create(full_name: 'Jack Rose', username: 'jackrose', password: '123', location: 'Queens, NY',
-                       bartender: true)
+                       bartender: true, email: 'jack.rose@example.com')
     doug = User.create(full_name: 'Douglas Fairbanks', username: 'fairbanks', password: '123',
-                       location: 'New York, NY', bartender: true)
+                       location: 'New York, NY', bartender: true, email: 'douglas.fairbanks@example.com')
     User.create(full_name: 'Mia Wallace', username: 'mrswallace', password: '123', location: 'New York, NY',
-                bartender: false)
+                bartender: false, email: 'mia.wallace@example.com')
 
     new_orleans_sour = Category.find_by!(name: 'New Orleans Sour')
     tiki = Category.find_by!(name: 'Tiki')
