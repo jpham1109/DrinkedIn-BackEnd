@@ -4,14 +4,24 @@ class UsersController < ApplicationController
   wrap_parameters :user,
                   include: %i[full_name username password workplace bartender instagram_account avatar email]
 
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 — Kinpour launches as a private-by-default
+  # account model: the public user directory (#index) and an individual
+  # profile lookup (#show) are no longer anonymous/open endpoints.
+  # require_editor (AuthenticatesRequest, unmodified) already returns
+  # 401 for an unauthenticated caller and 403 for an authenticated
+  # non-editor — #index just adopts that existing behavior as-is.
+  before_action :require_editor, only: :index
+  before_action :find_user, only: :show
+  before_action :require_self_or_editor, only: :show
+
   def index
     users = User.includes(:bars, :cocktails, :likes, :followed_users, :following_users, :image_attachment).order(:id)
     render json: users, except: %i[created_at updated_at]
   end
 
   def show
-    user = User.find(params[:id])
-    render json: user, except: %i[created_at updated_at]
+    render json: @user, except: %i[created_at updated_at]
   end
 
   # PR 1's skip_forgery_protection only: :signup is removed here (PR 2) —
@@ -88,6 +98,30 @@ class UsersController < ApplicationController
   # isn't just user_params with email merged in.
   def signup_params
     params.require(:user).permit(:full_name, :username, :password, :location, :bartender, :avatar, :email)
+  end
+
+  def find_user
+    @user = User.find(params[:id])
+  rescue ActiveRecord::RecordNotFound
+    render_not_found
+  end
+
+  # 404, never 403 — same concealment rule already established for
+  # draft cocktails (CocktailLookup#require_published_or_editor): a
+  # non-owner/non-editor must not be able to distinguish "this account
+  # doesn't exist" from "it exists but isn't visible to you." Applies
+  # regardless of auth state (an anonymous caller gets this same 404,
+  # not a 401 — unlike #index, this isn't a blanket "you must be an
+  # editor" gate, it's per-id concealment).
+  def require_self_or_editor
+    return if current_user&.editor? || current_user&.id == @user.id
+
+    render_not_found
+  end
+
+  def render_not_found
+    response.headers['Cache-Control'] = 'private, no-store'
+    render_error(code: 'not_found', message: 'User not found.', status: :not_found)
   end
 
   # Only ever called from the success branch of #signup (see above) — the

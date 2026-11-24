@@ -231,6 +231,27 @@ RSpec.describe 'Cocktails', type: :request do
       data = JSON.parse(response.body)['data']
       expect(data['creator']).to be_nil
     end
+
+    # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+    # (2026-11-23), Step 3 restricts GET /users and GET /users/:id to
+    # editor/self-only — this proves that restriction has zero effect
+    # on anonymous creator attribution, matching the audit's own finding
+    # that CocktailSerializer/BartenderSerializer nest the creator
+    # directly off the Cocktail record, completely independent of
+    # UsersController.
+    it 'still renders full creator/submitted_by identity for a fully anonymous caller after the GET /users restriction' do
+      creator = create(:user, full_name: 'Dale DeGroff')
+      cocktail_with_creator = create(:cocktail, :published, submitted_by: owner, creator_user: creator)
+
+      get "/cocktails/#{cocktail_with_creator.id}"
+      data = JSON.parse(response.body)['data']
+      expect(data['creator']['full_name']).to eq('Dale DeGroff')
+      expect(data['submitted_by']['id']).to eq(owner.id)
+
+      get '/cocktails'
+      listed = JSON.parse(response.body)['data'].find { |c| c['id'] == cocktail_with_creator.id }
+      expect(listed['creator']['full_name']).to eq('Dale DeGroff')
+    end
   end
 
   describe 'POST /cocktails' do

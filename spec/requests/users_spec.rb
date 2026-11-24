@@ -29,12 +29,21 @@ RSpec.describe 'Users', type: :request do
   # ai/v1-redesign-plan.md's publication-lifecycle workstream
   # (2026-11-18) — a user's id-only nested cocktails/likes must not
   # reveal a draft cocktail's existence to a non-editor either.
+  #
+  # Authenticated as the submitter/liker themselves, not anonymously —
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 restricts GET /users/:id to self-or-editor, so
+  # an anonymous request to this endpoint no longer returns a body at
+  # all (404). UserSerializer#cocktails/#likes conceal drafts from
+  # anyone who isn't an *editor*, independent of self-ownership — a
+  # user views their own drafts exactly as concealed as anyone else
+  # would, which is what these examples are actually proving.
   describe 'GET /users/:id draft visibility in nested associations' do
-    it "excludes a draft cocktail's id from the submitter's nested cocktails for a non-editor" do
+    it "excludes a draft cocktail's id from the submitter's own nested cocktails, viewed as a non-editor self" do
       submitter = create(:user)
       draft = create(:cocktail, submitted_by: submitter)
 
-      get "/users/#{submitter.id}"
+      get "/users/#{submitter.id}", headers: auth_headers_for(submitter)
       ids = JSON.parse(response.body)['cocktails'].pluck('id')
       expect(ids).not_to include(draft.id)
     end
@@ -48,12 +57,12 @@ RSpec.describe 'Users', type: :request do
       expect(ids).to include(draft.id)
     end
 
-    it "excludes a like on a draft cocktail from the liker's nested likes for a non-editor" do
+    it "excludes a like on a draft cocktail from the liker's own nested likes, viewed as a non-editor self" do
       liker = create(:user)
       draft = create(:cocktail)
       draft_like = create(:like, liker:, liked_cocktail: draft)
 
-      get "/users/#{liker.id}"
+      get "/users/#{liker.id}", headers: auth_headers_for(liker)
       ids = JSON.parse(response.body)['likes'].pluck('id')
       expect(ids).not_to include(draft_like.id)
     end
@@ -66,6 +75,58 @@ RSpec.describe 'Users', type: :request do
       get "/users/#{liker.id}", headers: auth_headers_for(create(:user, :editor))
       ids = JSON.parse(response.body)['likes'].pluck('id')
       expect(ids).to include(draft_like.id)
+    end
+  end
+
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 — registered accounts are private by default:
+  # GET /users is editor-only, GET /users/:id is self-or-editor only.
+  describe 'GET /users authorization' do
+    it 'returns 401 for an anonymous request (require_editor’s own existing require_login fallback)' do
+      get '/users'
+      expect(response).to have_http_status(:unauthorized)
+      expect(JSON.parse(response.body)['errors'][0]['code']).to eq('authentication_required')
+    end
+
+    it 'returns 403 for an authenticated non-editor' do
+      get '/users', headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 for an authenticated editor' do
+      get '/users', headers: auth_headers_for(create(:user, :editor))
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
+  describe 'GET /users/:id authorization' do
+    it 'returns 404 for an anonymous request — concealment, matching the draft-concealment convention' do
+      other = create(:user)
+      get "/users/#{other.id}"
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 404 for a nonexistent id' do
+      get '/users/999999', headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 404 for an authenticated non-owner, non-editor — identical to a nonexistent id' do
+      other = create(:user)
+      get "/users/#{other.id}", headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 200 for the account owner viewing their own profile' do
+      user = create(:user)
+      get "/users/#{user.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'returns 200 for an authenticated editor viewing any account' do
+      other = create(:user)
+      get "/users/#{other.id}", headers: auth_headers_for(create(:user, :editor))
+      expect(response).to have_http_status(:ok)
     end
   end
 
@@ -172,20 +233,15 @@ RSpec.describe 'Users', type: :request do
 
     # Public means public, no exceptions — not for the owner viewing
     # their own listed profile, not for an editor viewing anyone's.
+    #
+    # The "anonymously"/"someone else's account" variants of these two
+    # examples were retired here: GET /users and GET /users/:id no
+    # longer return a body to inspect for those auth states at all
+    # (Step 3 restricts both to editor-only / self-or-editor-only — see
+    # the dedicated authorization describe blocks above) — asserting
+    # "no email key" on a 401/403/404 response would be vacuously true
+    # and wouldn't actually be testing this guarantee anymore.
     describe 'never exposed through public user endpoints' do
-      it 'excludes email from every entry on GET /users, anonymously' do
-        create(:user, email: 'person@example.com')
-        get '/users'
-        data = JSON.parse(response.body)
-        expect(data).to all(satisfy { |entry| !entry.key?('email') })
-      end
-
-      it "excludes email from GET /users/:id on someone else's account" do
-        other = create(:user, email: 'person@example.com')
-        get "/users/#{other.id}", headers: auth_headers_for(create(:user))
-        expect(JSON.parse(response.body)).not_to have_key('email')
-      end
-
       it "excludes email from GET /users/:id on the viewer's own account" do
         user = create(:user, email: 'person@example.com')
         get "/users/#{user.id}", headers: auth_headers_for(user)
