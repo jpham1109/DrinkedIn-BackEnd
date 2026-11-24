@@ -73,6 +73,43 @@ RSpec.describe User, type: :model do
     end
   end
 
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 1 — the single eligibility check reused by
+  # AccountSerializer's enriched follow identities, and later by
+  # FollowsController#create and Users::AvatarsController (Step 3).
+  describe '.followable' do
+    it 'includes a user whose published cocktail credits them as submitted_by' do
+      category = create(:category)
+      creator = create(:user)
+      create(:cocktail, :published, submitted_by: creator, creator_unknown: true, category:)
+
+      expect(User.followable).to include(creator)
+    end
+
+    it 'includes a user whose published cocktail credits them as creator_user, even if a different user submitted it' do
+      category = create(:category)
+      submitter = create(:user)
+      registered_creator = create(:user)
+      create(:cocktail, :published, submitted_by: submitter, creator_user: registered_creator, category:)
+
+      expect(User.followable).to include(registered_creator)
+    end
+
+    it 'excludes a user whose only cocktail is an unpublished draft' do
+      category = create(:category)
+      creator = create(:user)
+      create(:cocktail, submitted_by: creator, creator_unknown: true, category:)
+
+      expect(User.followable).not_to include(creator)
+    end
+
+    it 'excludes a user with no cocktails at all' do
+      plain_user = create(:user)
+
+      expect(User.followable).not_to include(plain_user)
+    end
+  end
+
   # ai/v1-redesign-plan.md's email-signup-completion workstream
   # (2026-11-22) — the new presence requirement is scoped to `on:
   # :create` only, so a row that already existed before this
