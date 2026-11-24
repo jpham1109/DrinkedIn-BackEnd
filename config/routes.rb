@@ -1,7 +1,14 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  resources :follows
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 — GET /follows (index) and GET /follows/:id
+  # (show) removed entirely, not gated: verified zero consumers in
+  # either repo (frontend's followsSlice.js only ever defined
+  # addNewFollow/deleteFollow; follows_spec.rb never tested a GET on
+  # either route), so the unscoped social-graph read they exposed is
+  # closed by removing the surface, not restricting it.
+  resources :follows, only: %i[create destroy]
   resources :favorites
   resources :workplaces
   resources :likes

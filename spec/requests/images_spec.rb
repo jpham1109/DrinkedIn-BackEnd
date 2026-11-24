@@ -43,6 +43,17 @@ RSpec.describe 'Gated image delivery', type: :request do
     Rack::Test::UploadedFile.new(Rails.public_path.join('photos/cocktails/Airmail.jpg'), 'image/jpeg')
   end
 
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 — a "public creator" per User.followable: has at
+  # least one published cocktail crediting them, so their avatar stays
+  # anonymously fetchable under Users::AvatarsController's new
+  # require_avatar_visible check.
+  def published_creator
+    creator = create(:user)
+    create(:cocktail, :published, submitted_by: creator, creator_unknown: true, category: create(:category))
+    creator
+  end
+
   describe 'GET /cocktails/:id/image (variant)' do
     it 'serves the variant for a published cocktail, publicly' do
       cocktail = create(:cocktail, :published, creator_unknown: true)
@@ -133,39 +144,129 @@ RSpec.describe 'Gated image delivery', type: :request do
     end
   end
 
-  describe 'GET /users/:id/avatar (variant)' do
-    it 'serves the variant unconditionally — no draft concept applies to users' do
-      user = create(:user)
-      attach_real_image(user)
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23), Step 3 — avatars are no longer unconditionally public.
+  # Confirmed live before this fix: a plain account with no public
+  # presence had its avatar fully fetchable by sequential id guessing,
+  # anonymously. require_avatar_visible (Users::AvatarsController) is
+  # the narrowest fix: public creators stay anonymously reachable (the
+  # legitimate, unchanged use — cocktail cards' BartenderSerializer
+  # avatar); everyone else requires self/editor/an incoming follow.
+  describe 'GET /users/:id/avatar (variant) authorization' do
+    it 'serves a public creator’s variant anonymously, same as before this change' do
+      creator = published_creator
+      attach_real_image(creator)
 
-      get "/users/#{user.id}/avatar"
+      get "/users/#{creator.id}/avatar"
       expect(response).to have_http_status(:ok)
       expect(response.media_type).to eq('image/webp')
     end
 
-    it 'returns 404 when no avatar is attached' do
-      user = create(:user)
-      get "/users/#{user.id}/avatar"
+    it 'returns 404 when no avatar is attached, for a public creator (still reachable, nothing to serve)' do
+      creator = published_creator
+      get "/users/#{creator.id}/avatar"
       expect(response).to have_http_status(:not_found)
     end
 
-    it 'sets Cache-Control: private, no-store' do
-      user = create(:user)
-      attach_real_image(user)
+    it 'sets Cache-Control: private, no-store on a successful response' do
+      creator = published_creator
+      attach_real_image(creator)
 
-      get "/users/#{user.id}/avatar"
+      get "/users/#{creator.id}/avatar"
+      expect(response.headers['Cache-Control']).to eq('private, no-store')
+    end
+
+    it 'returns 404 for a private account’s avatar requested anonymously' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar"
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 404 for a private account’s avatar requested by an unrelated authenticated user' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar", headers: auth_headers_for(create(:user))
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'sets Cache-Control: private, no-store on a denied response too' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar"
+      expect(response.headers['Cache-Control']).to eq('private, no-store')
+    end
+
+    it "serves a private account's own avatar to themselves" do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar", headers: auth_headers_for(private_account)
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "serves a private account's avatar to an authenticated editor" do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar", headers: auth_headers_for(create(:user, :editor))
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'serves a private account’s avatar to someone that account follows (the incoming-follow rule)' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+      viewer = create(:user)
+      create(:follow, follower: private_account, followee: viewer)
+
+      get "/users/#{private_account.id}/avatar", headers: auth_headers_for(viewer)
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'does not grant visibility merely because current_user follows the target (one-directional rule)' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+      viewer = create(:user)
+      create(:follow, follower: viewer, followee: private_account)
+
+      get "/users/#{private_account.id}/avatar", headers: auth_headers_for(viewer)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'returns 404 for a nonexistent user id, identical to a private account’s denial' do
+      get '/users/999999/avatar'
+      expect(response).to have_http_status(:not_found)
       expect(response.headers['Cache-Control']).to eq('private, no-store')
     end
   end
 
-  describe 'GET /users/:id/avatar/original' do
-    it 'serves the original, unprocessed bytes unconditionally' do
-      user = create(:user)
-      attach_real_image(user)
+  describe 'GET /users/:id/avatar/original authorization' do
+    it 'serves a public creator’s original, unprocessed bytes anonymously' do
+      creator = published_creator
+      attach_real_image(creator)
 
-      get "/users/#{user.id}/avatar/original"
+      get "/users/#{creator.id}/avatar/original"
       expect(response).to have_http_status(:ok)
       expect(response.media_type).to eq('image/jpeg')
+    end
+
+    it 'returns 404 for a private account’s original avatar requested anonymously' do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar/original"
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "serves a private account's own original avatar to themselves" do
+      private_account = create(:user)
+      attach_real_image(private_account)
+
+      get "/users/#{private_account.id}/avatar/original", headers: auth_headers_for(private_account)
+      expect(response).to have_http_status(:ok)
     end
   end
 
