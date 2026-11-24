@@ -46,6 +46,32 @@ class User < ApplicationRecord
   has_secure_password
   validates :username, uniqueness: { case_sensitive: false }, presence: true
 
+  # ai/v1-redesign-plan.md's privacy-first-user-discovery workstream
+  # (2026-11-23) — a "public creator": an account whose identity is
+  # already discoverable anonymously via some published cocktail's
+  # BartenderSerializer (submitted_by/creator/bartender). The single
+  # source of truth for every eligibility check this workstream needs:
+  # which accounts may be followed (FollowsController#create, Step 3),
+  # whose avatar stays anonymously fetchable (Users::AvatarsController,
+  # Step 3), and whose identity AccountSerializer may safely nest
+  # (Step 1). Deliberately not scoped to Cocktail.published alone —
+  # creator_user_id and submitted_by_id can differ (attribution
+  # workstream, B1/B2), so either counts.
+  scope :followable, lambda {
+    where(id: Cocktail.published.select(:submitted_by_id))
+      .or(where(id: Cocktail.published.select(:creator_user_id)))
+  }
+
+  # Preloads exactly what AccountSerializer's enriched followed_users/
+  # following_users needs to avoid N+1 (confirmed by the N+1-proof spec
+  # this adds) — the attachment, not the blob, since avatar's
+  # processed_image_url only checks image.attached? and builds a URL by
+  # id, never reads the file itself.
+  scope :with_follow_identities, lambda {
+    includes(followed_users: { followee: :image_attachment },
+             following_users: { follower: :image_attachment })
+  }
+
   # ai/v1-redesign-plan.md's users.email workstream (2026-11-19).
   # Runs before the uniqueness/format/presence checks below so a
   # whitespace-only submission can never collide with another

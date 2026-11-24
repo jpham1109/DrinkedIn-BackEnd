@@ -5,8 +5,15 @@ class SessionsController < ApplicationController
 
   # AccountSerializer (not the public UserSerializer) — this is always
   # and only the authenticated account's own view of itself.
+  #
+  # with_follow_identities: a separate preloaded reload, not a change to
+  # current_user's own memoized resolution (AuthenticatesRequest) — that
+  # method is shared by every controller's auth checks, not just this
+  # serialization, so it stays untouched. Avoids N+1 on
+  # AccountSerializer's enriched followed_users/following_users
+  # (confirmed via a query-count spec).
   def show
-    render_success(current_user, serializer: AccountSerializer)
+    render_success(User.with_follow_identities.find(current_user.id), serializer: AccountSerializer)
   end
 
   # PR 1's skip_forgery_protection only: :create is removed here (PR 2) —
@@ -25,7 +32,8 @@ class SessionsController < ApplicationController
     if user&.authenticate(session_params[:password])
       reset_session
       session[:user_id] = user.id
-      render_success({ user: AccountSerializer.new(user) }, status: :ok)
+      # Same preloaded-reload reasoning as #show above.
+      render_success({ user: AccountSerializer.new(User.with_follow_identities.find(user.id)) }, status: :ok)
     else
       # Unknown username and wrong password return the same error —
       # deliberately not distinguished, to avoid formalizing username

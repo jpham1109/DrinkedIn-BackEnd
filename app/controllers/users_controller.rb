@@ -52,7 +52,10 @@ class UsersController < ApplicationController
 
     if current_user.save
       ProcessImageVariantJob.perform_later(current_user) if user_params[:avatar].present?
-      render json: current_user, serializer: AccountSerializer
+      # with_follow_identities: same preloaded-reload reasoning as
+      # SessionsController#show/#create — avoids N+1 on
+      # AccountSerializer's enriched followed_users/following_users.
+      render json: User.with_follow_identities.find(current_user.id), serializer: AccountSerializer
     else
       render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
     end
